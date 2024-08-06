@@ -84,7 +84,7 @@ jobs:
       fail-fast: false
       matrix:
         ###arch: [x86_64, armv7, aarch64]
-        arch: [x86_64]
+        arch: [aarch64]
         ###version: [release-25c, release-27, devel, trunk]
         version: [release-27]
         os: [ubuntu-22.04, macos-13]
@@ -216,7 +216,10 @@ jobs:
           EXTRA_CMAKE_OPTIONS=""
 
           if [[ ${{ matrix.os }} = 'macos'* ]]; then
-            # needed or else fails when run on macOS during "Performing build step for 'libdispatch-android-x86_64'": Error copying file "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/libdispatch-android-x86_64-prefix//libdispatch.so" to "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/./lib/swift/android/x86_64/libdispatch.so".
+            # We need to work around various issues with building the cross-compiler from macOS. Many of these seem to arise from cmake logic like 'if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")', which doesn't account for building a cross-compiler *on* a Darwin system
+
+            # Need -DLIBDISPATCH_RUNTIME_DIR or else fails when run on macOS during "Performing build step for 'libdispatch-android-x86_64'": Error copying file "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/libdispatch-android-x86_64-prefix//libdispatch.so" to "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/./lib/swift/android/x86_64/libdispatch.so".
+            # Likely a result of the logic at: https://github.com/swiftlang/swift/blob/81469eb3f777c5a7ed618e0f9071b8f6e640292e/cmake/modules/Libdispatch.cmake#L34
             EXTRA_CMAKE_OPTIONS="${EXTRA_CMAKE_OPTIONS} -DLIBDISPATCH_RUNTIME_DIR=lib"
 
             # otherwise: ld.lld: error: unknown argument '-dead_strip'
