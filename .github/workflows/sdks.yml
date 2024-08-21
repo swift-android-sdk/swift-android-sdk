@@ -64,7 +64,7 @@ jobs:
         if: ${{ steps.cache-toolchain-macos.outputs.cache-hit != 'true' }}
         run: |
           SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
-          if [[ ${{ matrix.version }} = 'release'* ]]; then
+          if [[ ${{ matrix.version }} = 'release' ]]; then
             # downcase "swift-5.10.1-RELEASE" to "swift-5.10.1-release"
             SWIFT_BRANCH=$(echo "$SWIFT_TAG" | tr '[:upper:]' '[:lower:]')
           elif [ ${{ matrix.version }} = 'devel' ]; then
@@ -82,8 +82,10 @@ jobs:
       fail-fast: false
       matrix:
         version: [release, devel, trunk]
-        arch: [x86_64, aarch64, armv7]
-        os: [ubuntu-22.04, macos-13]
+        ###arch: [x86_64, aarch64, armv7]
+        arch: [x86_64]
+        ###os: [ubuntu-22.04, macos-13]
+        os: [macos-13]
     env:
       ANDROID_API_LEVEL: 24
     steps:
@@ -154,8 +156,7 @@ jobs:
           ${TOOLCHAIN}/bin/swift --version
 
       - name: Build Swift ${{ matrix.version }} Android SDK if not the latest
-        # build-script currently only works on ubuntu
-        if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') && (matrix.os == 'ubuntu-22.04') }}
+        #if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true')
         env:
           SWIFT_TAG: ${{ steps.version.outputs.tag }}
           ANDROID_ARCH: ${{ matrix.arch }}
@@ -200,7 +201,32 @@ jobs:
           sed -i ${SEDINPLACE} "s%/data/data/com.termux/files%$SDK%" $SDK/usr/lib/pkgconfig/sqlite3.pc
           sed -i ${SEDINPLACE} "s%String(cString: getpass%\"fake\" //%" swiftpm/Sources/PackageRegistry$STUPID_FILE_RENAMING/PackageRegistry$STUPID_FILE_RENAMING+Auth.swift
 
-          # currently failing when run on macOS during "Performing build step for 'libdispatch-android-x86_64'": Error copying file "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/libdispatch-android-x86_64-prefix//libdispatch.so" to "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/./lib/swift/android/x86_64/libdispatch.so".
+          # additional patches for macOS
+          if [[ ${{ matrix.os }} = 'macos'* ]]; then
+            # LIBDISPATCH_RUNTIME_DIR=lib needed or libdispatch copy fails
+            EXTRA_CMAKE_OPTIONS="-DLIBDISPATCH_RUNTIME_DIR=lib -DSWIFT_STDLIB_HAS_ASL=FALSE -DLLVM_NO_DEAD_STRIP=TRUE -DSWIFT_DISABLE_DEAD_STRIPPING=TRUE"
+
+            # LLVM_LINKER_IS_APPLE is often set to TRUE when CMAKE_SYSTEM_NAME STREQUAL "Darwin", irregardless of whether we are using a non-Apple linker
+            # disable set(shared_cache_link_flags "LINKER:-not_for_dyld_shared_cache")
+            sed -i ${SEDINPLACE} 's;LLVM_LINKER_IS_APPLE AND;LLVM_LINKER_IS_APPLE AND NOT "ANDROID" IN_LIST SWIFT_SDKS AND;g' swift/stdlib/public/CMakeLists.txt
+
+            # needed to disable list(APPEND result "-Wl,-dead_strip")
+            sed -i ${SEDINPLACE} 's;CMAKE_SYSTEM_NAME MATCHES "Darwin";CMAKE_SYSTEM_NAME MATCHES "Darwin" AND NOT "ANDROID" IN_LIST SWIFT_SDKS;g' swift/stdlib/cmake/modules/AddSwiftStdlib.cmake
+
+            # needed to prevent ObjectiveC import in swift/stdlib/private/StdlibUnittestFoundationExtras/StdlibUnittestFoundationExtras.swift
+            sed -i ${SEDINPLACE} 's;CMAKE_SYSTEM_NAME STREQUAL "Darwin";CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT "ANDROID" IN_LIST SWIFT_SDKS;g' swift/stdlib/private/CMakeLists.txt
+
+            sed -i ${SEDINPLACE} 's;NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin";NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR "ANDROID" IN_LIST SWIFT_SDKS;g' swift/cmake/modules/Libdispatch.cmake
+
+            # fix the ndk_toolchain_path so it points to ~/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/darwin-x86_64 and not ~/Library/Android/sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/macosx-arm64
+            sed -i ${SEDINPLACE} "s;StdlibDeploymentTarget.host_target().name;'darwin-x86_64';g" swift/utils/swift_build_support/swift_build_support/targets.py
+
+            # TODO: need to patch swift/utils/swift_build_support/swift_build_support/targets.py to add swift_flags:
+            # flags += ' -Xlinker -L/opt/src/github/swift-android-sdk/swift-android-sdk/build/Ninja-Release/swift-android-aarch64/lib/swift/android/aarch64/'
+
+            # FIXME: seem to need -Ddispatch_DIR=${PWD}/./build/Ninja-Release/swift-android-aarch64/libdispatch-android-aarch64-prefix/src/libdispatch-android-aarch64-build/cmake/modules/ to avoid CMake Error at CMakeLists.txt:20 (find_package): Could not find a package configuration file provided by "dispatch" with any of the following names
+
+          fi
 
           ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
 
