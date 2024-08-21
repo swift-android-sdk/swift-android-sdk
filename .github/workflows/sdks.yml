@@ -154,7 +154,12 @@ jobs:
 
           echo "TOOLCHAIN=${TOOLCHAIN}" >> $GITHUB_ENV
           ${TOOLCHAIN}/bin/swift --version
-
+      - name: "Install Android NDK"
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          add-to-path: false
       - name: Build Swift ${{ matrix.version }} Android SDK if not the latest
         #if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true')
         env:
@@ -203,6 +208,8 @@ jobs:
 
           # additional patches for macOS
           if [[ ${{ matrix.os }} = 'macos'* ]]; then
+            NDK=${{ steps.setup-ndk.outputs.ndk-path }}
+
             # LIBDISPATCH_RUNTIME_DIR=lib needed or libdispatch copy fails
             EXTRA_CMAKE_OPTIONS="-DLIBDISPATCH_RUNTIME_DIR=lib -DSWIFT_STDLIB_HAS_ASL=FALSE -DLLVM_NO_DEAD_STRIP=TRUE -DSWIFT_DISABLE_DEAD_STRIPPING=TRUE"
 
@@ -228,7 +235,7 @@ jobs:
 
           fi
 
-          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
+          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax --extra-cmake-options="${EXTRA_CMAKE_OPTIONS}"
 
           cp $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$(echo ${{ matrix.arch }} | sed "s/v7//")-linux-android*/libc++_shared.so $SDK/usr/lib
           patchelf --set-rpath \$ORIGIN $SDK/usr/lib/swift/android/libdispatch.so
@@ -241,12 +248,6 @@ jobs:
         with:
           name: swift-android-sdk-${{ matrix.version }}-ndk-${{ matrix.arch }}-host-${{ matrix.os }}
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}*-sdk.tar.xz
-      - name: "Install Android NDK"
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27
-          add-to-path: false
       - name: Setup Swift ${{ matrix.version }} Android SDK
         id: sdk-setup
         run: |
@@ -279,13 +280,9 @@ jobs:
                 ARCHID="arm-linux-androideabi"
             fi
 
-            if [ ${{ matrix.version }} = 'release-25c' ]; then
-              NDK=$ANDROID_NDK/../25.2.9519653
-            else
-              # current default on macos is 26.3.11579264,
-              # so use the path from the nttld/setup-ndk action for r27
-              NDK=${{ steps.setup-ndk.outputs.ndk-path }}
-            fi
+            # current default on macos is 26.3.11579264,
+            # so use the path from the nttld/setup-ndk action for r27
+            NDK=${{ steps.setup-ndk.outputs.ndk-path }}
             NDK_PREBUILT=${NDK}/toolchains/llvm/prebuilt/darwin-x86_64
 
             # With the full SDK, the libs are all located in:
