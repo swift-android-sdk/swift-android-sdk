@@ -81,8 +81,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, armv7, aarch64]
-        version: [release-25c, release-27, devel, trunk]
+        version: [release, devel, trunk]
+        arch: [x86_64, aarch64, armv7]
         os: [ubuntu-22.04, macos-13]
     env:
       ANDROID_API_LEVEL: 24
@@ -90,7 +90,7 @@ jobs:
       - name: Extract the latest version string
         id: version
         run: |
-          if [[ ${{ matrix.version }} = 'release'* ]]; then
+          if [[ ${{ matrix.version }} = 'release' ]]; then
             TAG="${{ needs.get-latest-toolchain.outputs.release-version }}"
             echo "latest=$(echo $TAG | cut -d- -f2)" >> $GITHUB_OUTPUT
           elif [ ${{ matrix.version }} = 'devel' ]; then
@@ -178,7 +178,7 @@ jobs:
 
           git apply swift-android-ci.patch
           git apply -C1 swift-android.patch swift-android-both-ndks.patch
-          if [[ ${{ matrix.version }} = 'release'* ]]; then
+          if [[ ${{ matrix.version }} = 'release' ]]; then
             sed -i ${SEDINPLACE} "s%strsignal(signal).map%String(cString: strsignal(signal)) //%" swift-driver/Sources/SwiftDriver/Driver/ToolExecutionDelegate.swift
             git apply swift-android-stdlib-except-trunk.patch
             STUPID_FILE_RENAMING=Tool
@@ -186,25 +186,16 @@ jobs:
             sed -i ${SEDINPLACE} "s%r26%ndk/27%" swift/stdlib/cmake/modules/AddSwiftStdlib.cmake
             STUPID_FILE_RENAMING=Command
           fi
-          if [ ${{ matrix.version }} = 'release-25c' ]; then
-            NDK=$ANDROID_NDK/../25.2.9519653
-            sed -i ${SEDINPLACE} "s%#include <unistd%#include <signal.h>\n#include <unistd%" swift-corelibs-libdispatch/dispatch/dispatch.h
-            sed -i ${SEDINPLACE} "s%#include <unistd%#include <signal.h>\n#include <unistd%" llbuild/products/libllbuild/include/llbuild/buildsystem.h
-            sed -i ${SEDINPLACE} "s%#include <time%#include <signal.h>\n#include <time%" swift-tools-support-core/Sources/TSCclibc/include/indexstore_functions.h
-            sed -i ${SEDINPLACE} "s%#include <time%#include <signal.h>\n#include <time%" swift-crypto/Sources/CCryptoBoringSSL/include/CCryptoBoringSSL_asn1.h
+          git apply -C0 swift-android-foundation-ndk26.patch
+          if [ ${{ matrix.version }} = 'release' ]; then
+            git apply swift-android-stdlib-ndk26.patch
           else
-            NDK=$ANDROID_NDK
-            git apply -C0 swift-android-foundation-ndk26.patch
-            if [ ${{ matrix.version }} = 'release-27' ]; then
-              git apply swift-android-stdlib-ndk26.patch
+            if [ ${{ matrix.version }} = 'devel' ]; then
+              git apply android-overlay/import-android-devel.patch
             else
-              if [ ${{ matrix.version }} = 'devel' ]; then
-                git apply android-overlay/import-android-devel.patch
-              else
-                git apply swift-android-foundation-trunk.patch
-              fi
-              git apply android-overlay/foundation-fixes.patch android-overlay/swift-argument-parser.patch android-overlay/swift-stdlib-modulemap.patch android-overlay/swift-system.patch android-overlay/yams.patch
+              git apply swift-android-foundation-trunk.patch
             fi
+            git apply android-overlay/foundation-fixes.patch android-overlay/swift-argument-parser.patch android-overlay/swift-stdlib-modulemap.patch android-overlay/swift-system.patch android-overlay/yams.patch
           fi
           sed -i ${SEDINPLACE} "s%/data/data/com.termux/files%$SDK%" $SDK/usr/lib/pkgconfig/sqlite3.pc
           sed -i ${SEDINPLACE} "s%String(cString: getpass%\"fake\" //%" swiftpm/Sources/PackageRegistry$STUPID_FILE_RENAMING/PackageRegistry$STUPID_FILE_RENAMING+Auth.swift
@@ -213,11 +204,11 @@ jobs:
 
           ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
 
-          cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$(echo ${{ matrix.arch }} | sed "s/v7//")-linux-android*/libc++_shared.so $SDK/usr/lib
+          cp $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$(echo ${{ matrix.arch }} | sed "s/v7//")-linux-android*/libc++_shared.so $SDK/usr/lib
           patchelf --set-rpath \$ORIGIN $SDK/usr/lib/swift/android/libdispatch.so
           patchelf --set-rpath \$ORIGIN/../..:\$ORIGIN $SDK/usr/lib/swift/android/lib[FXs]*.so
 
-          tar cJf ~/${SDK_NAME/-release/-${{ matrix.version }}}.tar.xz $SDK_NAME
+          tar cJf ~/$SDK_NAME.tar.xz $SDK_NAME
           rm -rf build/ $SDK_NAME llvm-project/
       - name: Upload SDK
         uses: actions/upload-artifact@v4
@@ -332,9 +323,6 @@ jobs:
       - name: Build Swift crypto package
         run: |
           cd swift-crypto
-          if [ ${{ matrix.version }} = 'release-25c' ]; then
-            sed -i ${SEDINPLACE} "s%#include <time%#include <signal.h>\n#include <time%" Sources/CCryptoBoringSSL/include/CCryptoBoringSSL_asn1.h
-          fi
           sed -i ${SEDINPLACE} "s%\\\\(testsDirectory)/.*Vectors%/data/local/tmp/pack/crypto-vectors%" Tests/CryptoTests/Utils/RFCVector.swift Tests/CryptoTests/Utils/Wycheproof.swift Tests/_CryptoExtrasTests/Utils/Wycheproof.swift
           sed -i ${SEDINPLACE} 's%#file%"/data/local/tmp/pack/crypto-vectors"%;s%../_CryptoExtrasVectors/%%' Tests/_CryptoExtrasTests/TestRSABlindSigning.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
@@ -346,12 +334,7 @@ jobs:
       - name: Build Swift NIO package
         run: |
           cd swift-nio
-          git apply ../sdk-config/swift-nio-disable-ecn-tests.patch ../sdk-config/swift-nio-filesystem-both-ndks.patch
-          if [ ${{ matrix.version }} = 'release-25c' ]; then
-            git apply -R ../sdk-config/swift-nio-ndk26.patch
-          else
-            git apply ../sdk-config/swift-nio-ndk27.patch
-          fi
+          git apply ../sdk-config/swift-nio-disable-ecn-tests.patch ../sdk-config/swift-nio-filesystem-both-ndks.patch ../sdk-config/swift-nio-ndk27.patch
           ${TOOLCHAIN}/bin/swift package update
           cd .build/checkouts/
           patch -p1 < ../../../sdk-config/android-overlay/swift-system.patch
@@ -408,9 +391,6 @@ jobs:
       - name: Build Swift NIO SSL package
         run: |
           cd snl
-          if [ ${{ matrix.version }} = 'release-25c' ]; then
-            sed -i ${SEDINPLACE} "s%#include <time%#include <signal.h>\n#include <time%" Sources/CNIOBoringSSL/include/CNIOBoringSSL_asn1.h
-          fi
           SWIFTCI_USE_LOCAL_DEPS=1 ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Yams package
         uses: actions/checkout@v4
