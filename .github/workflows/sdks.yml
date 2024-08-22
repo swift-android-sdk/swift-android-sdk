@@ -202,7 +202,7 @@ jobs:
 
           # currently failing when run on macOS during "Performing build step for 'libdispatch-android-x86_64'": Error copying file "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/libdispatch-android-x86_64-prefix//libdispatch.so" to "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/./lib/swift/android/x86_64/libdispatch.so".
 
-          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
+          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
 
           cp $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$(echo ${{ matrix.arch }} | sed "s/v7//")-linux-android*/libc++_shared.so $SDK/usr/lib
           patchelf --set-rpath \$ORIGIN $SDK/usr/lib/swift/android/libdispatch.so
@@ -253,14 +253,10 @@ jobs:
                 ARCHID="arm-linux-androideabi"
             fi
 
-            if [ ${{ matrix.version }} = 'release-25c' ]; then
-              NDK=$ANDROID_NDK/../25.2.9519653
-            else
-              # current default on macos is 26.3.11579264,
-              # so use the path from the nttld/setup-ndk action for r27
-              NDK=${{ steps.setup-ndk.outputs.ndk-path }}
-            fi
-            NDK_PREBUILT=${NDK}/toolchains/llvm/prebuilt/darwin-x86_64
+            # current default on macos is 26.3.11579264,
+            # so use the path from the nttld/setup-ndk action for r27
+            ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}
+            NDK_PREBUILT=${ANDROID_NDK}/toolchains/llvm/prebuilt/darwin-x86_64
 
             # With the full SDK, the libs are all located in:
             #"-L", "${SDK}/usr/lib/${ARCHID}"
@@ -288,8 +284,8 @@ jobs:
 
             echo "toolchain-bin: ${TOOLCHAIN}/bin"
             ls -d ${TOOLCHAIN}/bin
-            echo "NDK: ${NDK}"
-            ls -d ${NDK}
+            echo "ANDROID_NDK: ${ANDROID_NDK}"
+            ls -d ${ANDROID_NDK}
             echo "NDK_PREBUILT: ${NDK_PREBUILT}"
             ls -d ${NDK_PREBUILT}/sysroot
             echo "resource-dir: ${SDK_PATH}/usr/lib/swift"
