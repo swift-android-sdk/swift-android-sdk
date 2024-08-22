@@ -248,14 +248,10 @@ jobs:
                 ARCHID="arm-linux-androideabi"
             fi
 
-            if [ ${{ matrix.version }} = 'release-25c' ]; then
-              NDK=$ANDROID_NDK/../25.2.9519653
-            else
-              # current default on macos is 26.3.11579264,
-              # so use the path from the nttld/setup-ndk action for r27
-              NDK=${{ steps.setup-ndk.outputs.ndk-path }}
-            fi
-            NDK_PREBUILT=${NDK}/toolchains/llvm/prebuilt/darwin-x86_64
+            # current default on macos is 26.3.11579264,
+            # so use the path from the nttld/setup-ndk action for r27
+            ANDROID_NDK=${{ steps.setup-ndk.outputs.ndk-path }}
+            NDK_PREBUILT=${ANDROID_NDK}/toolchains/llvm/prebuilt/darwin-x86_64
 
             # With the full SDK, the libs are all located in:
             #"-L", "${SDK}/usr/lib/${ARCHID}"
@@ -283,8 +279,8 @@ jobs:
 
             echo "toolchain-bin: ${TOOLCHAIN}/bin"
             ls -d ${TOOLCHAIN}/bin
-            echo "NDK: ${NDK}"
-            ls -d ${NDK}
+            echo "ANDROID_NDK: ${ANDROID_NDK}"
+            ls -d ${ANDROID_NDK}
             echo "NDK_PREBUILT: ${NDK_PREBUILT}"
             ls -d ${NDK_PREBUILT}/sysroot
             echo "resource-dir: ${SDK_PATH}/usr/lib/swift"
