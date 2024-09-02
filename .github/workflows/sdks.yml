@@ -1,6 +1,7 @@
 name: SDKs
 on:
   pull_request:
+  push:
   schedule:
     - cron: '0 9 * * *'
 
@@ -491,7 +492,9 @@ jobs:
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/swift/android/lib*so pack/lib/swift/android
           mv pack/lib/libc++_shared.so pack/lib/swift/android
-          rm -rf sdk-config/${{ steps.version.outputs.tag }}-ubuntu22.04
+          # need to free up some space or else the emulator fails to launch:
+          # ERROR   | Not enough space to create userdata partition. Available: 6086.191406 MB at /home/runner/.android/avd/../avd/test.avd, need 7372.800000 MB.
+          rm -rf sdk-config/${{ steps.version.outputs.tag }}-ubuntu22.04 */.build
 
           chmod +x ~/test-toolchain.sh
 
@@ -504,9 +507,6 @@ jobs:
             sudo udevadm trigger --name-match=kvm
           fi
 
-          # need to free up some space or else the emulator fails to launch:
-          # ERROR   | Not enough space to create userdata partition. Available: 6086.191406 MB at /home/runner/.android/avd/../avd/test.avd, need 7372.800000 MB.
-          rm -rf */.build
 
       - name: Run tests on Android x86_64 emulator
         if: ${{ matrix.arch == 'x86_64' }}
