@@ -96,9 +96,9 @@ jobs:
         run: |
           if [[ ${{ matrix.os }} = 'macos'* ]]; then
             # the inplace "-i" flag to sed requires an empty arg on macOS
-            echo 'sed -i "" ${@}' > ~/sedinplace.sh
+            echo 'sed -i "" "${@}"' > ~/sedinplace.sh
           else
-            echo 'sed -i ${@}' > ~/sedinplace.sh
+            echo 'sed -i "${@}"' > ~/sedinplace.sh
           fi
           chmod +x ~/sedinplace.sh
       - name: Get cached SDK
@@ -350,7 +350,7 @@ jobs:
       - name: Build Swift NIO SSH package
         run: |
           cd sns
-          ~/sedinplace.sh 's%url: .*swift-\([a-z]*\)\.git.*$%path: "../swift-\1"),%g' Package.swift
+          ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO SSL package
         uses: actions/checkout@v4
