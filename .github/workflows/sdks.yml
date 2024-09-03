@@ -173,11 +173,11 @@ jobs:
           git apply -C1 swift-android.patch
           git apply -C0 swift-android-foundation-ndk26.patch
           if [[ ${{ matrix.version }} = 'release' ]]; then
-            ~/sedinplace.sh -e "s%strsignal(signal).map%String(cString: strsignal(signal)) //%" swift-driver/Sources/SwiftDriver/Driver/ToolExecutionDelegate.swift
+            ~/sedinplace.sh "s%strsignal(signal).map%String(cString: strsignal(signal)) //%" swift-driver/Sources/SwiftDriver/Driver/ToolExecutionDelegate.swift
             git apply swift-android-release-stdlib.patch
             STUPID_FILE_RENAMING=Tool
           else
-            ~/sedinplace.sh -e "s%r26%ndk/27%" swift/stdlib/cmake/modules/AddSwiftStdlib.cmake
+            ~/sedinplace.sh "s%r26%ndk/27%" swift/stdlib/cmake/modules/AddSwiftStdlib.cmake
             if [ ${{ matrix.version }} = 'devel' ]; then
               git apply android-overlay/import-android-devel.patch
             else
@@ -187,8 +187,8 @@ jobs:
             STUPID_FILE_RENAMING=Command
           fi
 
-          ~/sedinplace.sh -e "s%/data/data/com.termux/files%$SDK%" $SDK/usr/lib/pkgconfig/sqlite3.pc
-          ~/sedinplace.sh -e "s%String(cString: getpass%\"fake\" //%" swiftpm/Sources/PackageRegistry$STUPID_FILE_RENAMING/PackageRegistry$STUPID_FILE_RENAMING+Auth.swift
+          ~/sedinplace.sh "s%/data/data/com.termux/files%$SDK%" $SDK/usr/lib/pkgconfig/sqlite3.pc
+          ~/sedinplace.sh "s%String(cString: getpass%\"fake\" //%" swiftpm/Sources/PackageRegistry$STUPID_FILE_RENAMING/PackageRegistry$STUPID_FILE_RENAMING+Auth.swift
 
           ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=`pwd`/$SWIFT_TAG-ubuntu22.04/usr/bin --native-clang-tools-path=`pwd`/$SWIFT_TAG-ubuntu22.04/usr/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
 
@@ -292,8 +292,8 @@ jobs:
       - name: Build Swift crypto package
         run: |
           cd swift-crypto
-          ~/sedinplace.sh -e "s%\\\\(testsDirectory)/.*Vectors%/data/local/tmp/pack/crypto-vectors%" Tests/CryptoTests/Utils/RFCVector.swift Tests/CryptoTests/Utils/Wycheproof.swift Tests/_CryptoExtrasTests/Utils/Wycheproof.swift
-          ~/sedinplace.sh -e 's%#file%"/data/local/tmp/pack/crypto-vectors"%;s%../_CryptoExtrasVectors/%%' Tests/_CryptoExtrasTests/TestRSABlindSigning.swift
+          ~/sedinplace.sh "s%\\\\(testsDirectory)/.*Vectors%/data/local/tmp/pack/crypto-vectors%" Tests/CryptoTests/Utils/RFCVector.swift Tests/CryptoTests/Utils/Wycheproof.swift Tests/_CryptoExtrasTests/Utils/Wycheproof.swift
+          ~/sedinplace.sh 's%#file%"/data/local/tmp/pack/crypto-vectors"%;s%../_CryptoExtrasVectors/%%' Tests/_CryptoExtrasTests/TestRSABlindSigning.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ../sdk-config/swift-*-sdk/usr/swiftpm-android-${{ matrix.arch }}.json -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO package
         uses: actions/checkout@v4
@@ -350,7 +350,7 @@ jobs:
       - name: Build Swift NIO SSH package
         run: |
           cd sns
-          ~/sedinplace.sh -e "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
+          ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO SSL package
         uses: actions/checkout@v4
@@ -369,7 +369,7 @@ jobs:
       - name: Build Yams package
         run: |
           cd yams
-          ~/sedinplace.sh -e "s% fixturesDirectory + \"/SourceKitten#289% \"/data/local/tmp/pack%" Tests/YamsTests/PerformanceTests.swift
+          ~/sedinplace.sh "s% fixturesDirectory + \"/SourceKitten#289% \"/data/local/tmp/pack%" Tests/YamsTests/PerformanceTests.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO HTTP/2 package
         uses: actions/checkout@v4
@@ -380,7 +380,7 @@ jobs:
         if: ${{ matrix.arch != 'armv7' }}
         run: |
           cd snh
-          ~/sedinplace.sh -e "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
+          ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift Algorithms package
         uses: actions/checkout@v4
@@ -390,7 +390,7 @@ jobs:
       - name: Build Swift Algorithms package
         run: |
           cd sa
-          ~/sedinplace.sh -e "s%url: .*$%path: \"../swift-numerics\"),%" Package.swift
+          ~/sedinplace.sh "s%url: .*$%path: \"../swift-numerics\"),%" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get cached Termux debug app for NIO tests
         if: ${{ matrix.arch == 'x86_64' }}
