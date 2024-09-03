@@ -39,13 +39,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.check.outputs.latest-tag }}-ubuntu22.04.tar.gz
-          key: swift-ubuntu22.04-${{ steps.check.outputs.latest-tag }}-toolchain
+          key: swift-ubuntu22.04-${{ steps.check.outputs.latest-tag }}-toolchain-cache
       - name: Get cached macOS toolchain
         id: cache-toolchain-macos
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.check.outputs.latest-tag }}-osx.pkg
-          key: swift-macos-${{ steps.check.outputs.latest-tag }}-toolchain
+          key: swift-macos-${{ steps.check.outputs.latest-tag }}-toolchain-cache
       - name: Download toolchain
         if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit != 'true' || steps.cache-toolchain-macos.outputs.cache-hit != 'true' }}
         run: |
@@ -58,11 +58,11 @@ jobs:
             SWIFT_BRANCH="development"
           fi
           cd
-          if [[ ${{ steps.cache-toolchain-macos.outputs.cache-hit }} != 'true' ]]; then
+          if [[ "${{ steps.cache-toolchain-macos.outputs.cache-hit }}" != 'true' ]]; then
             wget -q https://download.swift.org/$SWIFT_BRANCH/xcode/$SWIFT_TAG/$SWIFT_TAG-osx.pkg
             echo "downloaded latest macOS toolchain: ${SWIFT_TAG}"
           fi
-          if [[ ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit }} != 'true' ]]; then
+          if [[ "${{ steps.cache-toolchain-ubuntu.outputs.cache-hit }}" != 'true' ]]; then
             wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
             echo "downloaded latest Ubuntu toolchain: ${SWIFT_TAG}"
           fi
@@ -118,14 +118,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.version.outputs.tag }}-ubuntu22.04.tar.gz
-          key: swift-ubuntu22.04-${{ steps.version.outputs.tag }}-toolchain
+          key: swift-ubuntu22.04-${{ steps.version.outputs.tag }}-toolchain-cache
       - name: Get cached Swift macOS ${{ matrix.version }} toolchain
         if: ${{ matrix.os == 'macos-13' }}
         id: cache-toolchain-macos
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.version.outputs.tag }}-osx.pkg
-          key: swift-macos-${{ steps.version.outputs.tag }}-toolchain
+          key: swift-macos-${{ steps.version.outputs.tag }}-toolchain-cache
       - name: Setup Swift Toolchain
         env:
           SWIFT_TAG: ${{ steps.version.outputs.tag }}
