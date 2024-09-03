@@ -58,12 +58,14 @@ jobs:
             SWIFT_BRANCH="development"
           fi
           cd
-          if [[ ${{ matrix.os }} = 'macos'* ]]; then
+          if [[ ${{ steps.cache-toolchain-macos.outputs.cache-hit }} != 'true' ]]; then
             wget -q https://download.swift.org/$SWIFT_BRANCH/xcode/$SWIFT_TAG/$SWIFT_TAG-osx.pkg
-          else
-            wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
+            echo "downloaded latest macOS toolchain: ${SWIFT_TAG}"
           fi
-          echo "got latest toolchain: ${SWIFT_TAG}"
+          if [[ ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit }} != 'true' ]]; then
+            wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
+            echo "downloaded latest Ubuntu toolchain: ${SWIFT_TAG}"
+          fi
   build-sdk-and-tests:
     runs-on: ${{ matrix.os }}
     needs: get-latest-toolchain
