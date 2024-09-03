@@ -40,8 +40,14 @@ jobs:
         with:
           path: ~/${{ steps.check.outputs.latest-tag }}-ubuntu22.04.tar.gz
           key: swift-ubuntu22.04-${{ steps.check.outputs.latest-tag }}-toolchain
-      - name: Download Ubuntu toolchain
-        if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit != 'true' }}
+      - name: Get cached macOS toolchain
+        id: cache-toolchain-macos
+        uses: actions/cache@v4
+        with:
+          path: ~/${{ steps.check.outputs.latest-tag }}-osx.pkg
+          key: swift-macos-${{ steps.check.outputs.latest-tag }}-toolchain
+      - name: Download toolchain
+        if: ${{ steps.cache-toolchain-ubuntu.outputs.cache-hit != 'true' || steps.cache-toolchain-macos.outputs.cache-hit != 'true' }}
         run: |
           SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
           if [ ${{ matrix.version }} = 'release' ]; then
@@ -52,28 +58,11 @@ jobs:
             SWIFT_BRANCH="development"
           fi
           cd
-          wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
-          echo "got latest toolchain: ${SWIFT_TAG}"
-      - name: Get cached macOS toolchain
-        id: cache-toolchain-macos
-        uses: actions/cache@v4
-        with:
-          path: ~/${{ steps.check.outputs.latest-tag }}-osx.pkg
-          key: swift-macos-${{ steps.check.outputs.latest-tag }}-toolchain
-      - name: Download macOS toolchain
-        if: ${{ steps.cache-toolchain-macos.outputs.cache-hit != 'true' }}
-        run: |
-          SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
-          if [[ ${{ matrix.version }} = 'release'* ]]; then
-            # downcase "swift-5.10.1-RELEASE" to "swift-5.10.1-release"
-            SWIFT_BRANCH=$(echo "$SWIFT_TAG" | tr '[:upper:]' '[:lower:]')
-          elif [ ${{ matrix.version }} = 'devel' ]; then
-            SWIFT_BRANCH="swift-6.0-branch"
+          if [[ ${{ matrix.os }} = 'macos'* ]]; then
+            wget -q https://download.swift.org/$SWIFT_BRANCH/xcode/$SWIFT_TAG/$SWIFT_TAG-osx.pkg
           else
-            SWIFT_BRANCH="development"
+            wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
           fi
-          cd
-          wget -q https://download.swift.org/$SWIFT_BRANCH/xcode/$SWIFT_TAG/$SWIFT_TAG-osx.pkg
           echo "got latest toolchain: ${SWIFT_TAG}"
   build-sdk-and-tests:
     runs-on: ${{ matrix.os }}
@@ -106,8 +95,11 @@ jobs:
         run: |
           if [[ ${{ matrix.os }} = 'macos'* ]]; then
             # the inplace "-i" flag to sed requires an empty arg on macOS
-            echo "SEDINPLACE=''" >> $GITHUB_ENV
+            echo 'sed -i "" "${@}"' > ~/sedinplace.sh
+          else
+            echo 'sed -i "${@}"' > ~/sedinplace.sh
           fi
+          chmod +x ~/sedinplace.sh
       - name: Get cached SDK
         id: cache-sdk
         uses: actions/cache@v4
@@ -173,34 +165,29 @@ jobs:
           ${TOOLCHAIN}/bin/swift --version
           BUILD_SWIFT_PM=1 ${TOOLCHAIN}/bin/swift get-packages-and-swift-source.swift
 
-          SDK_NAME=$(ls | grep swift-$(echo ${{ matrix.version }} | sed "s/-2[5-9][a-e]*//")-android-${{ matrix.arch }})
+          SDK_NAME=$(ls | grep swift-${{ matrix.version }}-android-${{ matrix.arch }})
           SDK=`pwd`/$SDK_NAME
 
           git apply swift-android-ci.patch
-          git apply -C1 swift-android.patch swift-android-both-ndks.patch
+          git apply -C1 swift-android.patch
+          git apply -C0 swift-android-foundation-ndk26.patch
           if [[ ${{ matrix.version }} = 'release' ]]; then
-            sed -i ${SEDINPLACE} "s%strsignal(signal).map%String(cString: strsignal(signal)) //%" swift-driver/Sources/SwiftDriver/Driver/ToolExecutionDelegate.swift
-            git apply swift-android-stdlib-except-trunk.patch
+            ~/sedinplace.sh "s%strsignal(signal).map%String(cString: strsignal(signal)) //%" swift-driver/Sources/SwiftDriver/Driver/ToolExecutionDelegate.swift
+            git apply swift-android-release-stdlib.patch
             STUPID_FILE_RENAMING=Tool
           else
-            sed -i ${SEDINPLACE} "s%r26%ndk/27%" swift/stdlib/cmake/modules/AddSwiftStdlib.cmake
-            STUPID_FILE_RENAMING=Command
-          fi
-          git apply -C0 swift-android-foundation-ndk26.patch
-          if [ ${{ matrix.version }} = 'release' ]; then
-            git apply swift-android-stdlib-ndk26.patch
-          else
+            ~/sedinplace.sh "s%r26%ndk/27%" swift/stdlib/cmake/modules/AddSwiftStdlib.cmake
             if [ ${{ matrix.version }} = 'devel' ]; then
               git apply android-overlay/import-android-devel.patch
             else
               git apply swift-android-foundation-trunk.patch
             fi
             git apply android-overlay/foundation-fixes.patch android-overlay/swift-argument-parser.patch android-overlay/swift-stdlib-modulemap.patch android-overlay/swift-system.patch android-overlay/yams.patch
+            STUPID_FILE_RENAMING=Command
           fi
-          sed -i ${SEDINPLACE} "s%/data/data/com.termux/files%$SDK%" $SDK/usr/lib/pkgconfig/sqlite3.pc
-          sed -i ${SEDINPLACE} "s%String(cString: getpass%\"fake\" //%" swiftpm/Sources/PackageRegistry$STUPID_FILE_RENAMING/PackageRegistry$STUPID_FILE_RENAMING+Auth.swift
 
-          # currently failing when run on macOS during "Performing build step for 'libdispatch-android-x86_64'": Error copying file "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/libdispatch-android-x86_64-prefix//libdispatch.so" to "/Users/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/build/Ninja-Release/swift-android-x86_64/./lib/swift/android/x86_64/libdispatch.so".
+          ~/sedinplace.sh "s%/data/data/com.termux/files%$SDK%" $SDK/usr/lib/pkgconfig/sqlite3.pc
+          ~/sedinplace.sh "s%String(cString: getpass%\"fake\" //%" swiftpm/Sources/PackageRegistry$STUPID_FILE_RENAMING/PackageRegistry$STUPID_FILE_RENAMING+Auth.swift
 
           ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
 
@@ -213,7 +200,7 @@ jobs:
       - name: Upload SDK
         uses: actions/upload-artifact@v4
         with:
-          name: swift-android-sdk-${{ matrix.version }}-ndk-${{ matrix.arch }}-host-${{ matrix.os }}
+          name: swift-android-sdk-${{ matrix.version }}-${{ matrix.arch }}-host-${{ matrix.os }}
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}*-sdk.tar.xz
       - name: "Install Android NDK"
         id: setup-ndk
@@ -274,28 +261,12 @@ jobs:
                 "extra-swiftc-flags": [
                     "-resource-dir", "${SDK_PATH}/usr/lib/swift",
                     "-tools-directory", "${NDK_PREBUILT}/bin",
-                    "-L", "${SDK_PATH}/usr/lib",
-                    "-L", "${SDK_PATH}/usr/lib/swift/android"
+                    "-L", "${SDK_PATH}/usr/lib"
                 ]
             }
           EOF
 
             cat ${ARCH_JSON}
-
-            echo "toolchain-bin: ${TOOLCHAIN}/bin"
-            ls -d ${TOOLCHAIN}/bin
-            echo "ANDROID_NDK: ${ANDROID_NDK}"
-            ls -d ${ANDROID_NDK}
-            echo "NDK_PREBUILT: ${NDK_PREBUILT}"
-            ls -d ${NDK_PREBUILT}/sysroot
-            echo "resource-dir: ${SDK_PATH}/usr/lib/swift"
-            ls -d ${SDK_PATH}/usr/lib/swift
-            echo "tools-directory: ${NDK_PREBUILT}/bin"
-            ls -d ${NDK_PREBUILT}/bin
-            echo "-L: ${SDK_PATH}/usr/lib"
-            ls -d ${SDK_PATH}/usr/lib
-            echo "-L: ${SDK_PATH}/usr/lib/swift/android"
-            ls -d ${SDK_PATH}/usr/lib/swift/android
           fi
 
           echo "SDK_PATH=${SDK_PATH}" >> $GITHUB_ENV
@@ -319,8 +290,8 @@ jobs:
       - name: Build Swift crypto package
         run: |
           cd swift-crypto
-          sed -i ${SEDINPLACE} "s%\\\\(testsDirectory)/.*Vectors%/data/local/tmp/pack/crypto-vectors%" Tests/CryptoTests/Utils/RFCVector.swift Tests/CryptoTests/Utils/Wycheproof.swift Tests/_CryptoExtrasTests/Utils/Wycheproof.swift
-          sed -i ${SEDINPLACE} 's%#file%"/data/local/tmp/pack/crypto-vectors"%;s%../_CryptoExtrasVectors/%%' Tests/_CryptoExtrasTests/TestRSABlindSigning.swift
+          ~/sedinplace.sh "s%\\\\(testsDirectory)/.*Vectors%/data/local/tmp/pack/crypto-vectors%" Tests/CryptoTests/Utils/RFCVector.swift Tests/CryptoTests/Utils/Wycheproof.swift Tests/_CryptoExtrasTests/Utils/Wycheproof.swift
+          ~/sedinplace.sh 's%#file%"/data/local/tmp/pack/crypto-vectors"%;s%../_CryptoExtrasVectors/%%' Tests/_CryptoExtrasTests/TestRSABlindSigning.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO package
         uses: actions/checkout@v4
@@ -377,7 +348,7 @@ jobs:
       - name: Build Swift NIO SSH package
         run: |
           cd sns
-          sed -i ${SEDINPLACE} "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
+          ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO SSL package
         uses: actions/checkout@v4
@@ -396,7 +367,7 @@ jobs:
       - name: Build Yams package
         run: |
           cd yams
-          sed -i ${SEDINPLACE} "s% fixturesDirectory + \"/SourceKitten#289% \"/data/local/tmp/pack%" Tests/YamsTests/PerformanceTests.swift
+          ~/sedinplace.sh "s% fixturesDirectory + \"/SourceKitten#289% \"/data/local/tmp/pack%" Tests/YamsTests/PerformanceTests.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO HTTP/2 package
         uses: actions/checkout@v4
@@ -407,7 +378,7 @@ jobs:
         if: ${{ matrix.arch != 'armv7' }}
         run: |
           cd snh
-          sed -i ${SEDINPLACE} "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
+          ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift Algorithms package
         uses: actions/checkout@v4
@@ -417,7 +388,7 @@ jobs:
       - name: Build Swift Algorithms package
         run: |
           cd sa
-          sed -i ${SEDINPLACE} "s%url: .*$%path: \"../swift-numerics\"),%" Package.swift
+          ~/sedinplace.sh "s%url: .*$%path: \"../swift-numerics\"),%" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get cached Termux debug app for NIO tests
         if: ${{ matrix.arch == 'x86_64' }}
@@ -496,7 +467,9 @@ jobs:
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/lib*so pack/lib
           cp sdk-config/swift-*-android-x86_64-*${ANDROID_API_LEVEL}-sdk/usr/lib/swift/android/lib*so pack/lib/swift/android
           mv pack/lib/libc++_shared.so pack/lib/swift/android
-          rm -rf sdk-config/${{ steps.version.outputs.tag }}-ubuntu22.04
+          # need to free up some space or else the emulator fails to launch:
+          # ERROR   | Not enough space to create userdata partition. Available: 6086.191406 MB at /home/runner/.android/avd/../avd/test.avd, need 7372.800000 MB.
+          rm -rf sdk-config/${{ steps.version.outputs.tag }}-ubuntu22.04 */.build
 
           chmod +x ~/test-toolchain.sh
 
@@ -508,10 +481,6 @@ jobs:
             sudo udevadm control --reload-rules
             sudo udevadm trigger --name-match=kvm
           fi
-
-          # need to free up some space or else the emulator fails to launch:
-          # ERROR   | Not enough space to create userdata partition. Available: 6086.191406 MB at /home/runner/.android/avd/../avd/test.avd, need 7372.800000 MB.
-          rm -rf */.build
 
       - name: Run tests on Android x86_64 emulator
         if: ${{ matrix.arch == 'x86_64' }}
