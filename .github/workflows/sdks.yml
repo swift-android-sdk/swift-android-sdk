@@ -262,8 +262,7 @@ jobs:
                 "extra-swiftc-flags": [
                     "-resource-dir", "${SDK_PATH}/usr/lib/swift",
                     "-tools-directory", "${NDK_PREBUILT}/bin",
-                    "-L", "${SDK_PATH}/usr/lib",
-                    "-L", "${SDK_PATH}/usr/lib/swift/android"
+                    "-L", "${SDK_PATH}/usr/lib"
                 ]
             }
           EOF
