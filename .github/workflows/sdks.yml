@@ -64,27 +64,6 @@ jobs:
             wget -q https://download.swift.org/$SWIFT_BRANCH/ubuntu2204/$SWIFT_TAG/$SWIFT_TAG-ubuntu22.04.tar.gz
           fi
           echo "got latest toolchain: ${SWIFT_TAG}"
-      - name: Get cached macOS toolchain
-        id: cache-toolchain-macos
-        uses: actions/cache@v4
-        with:
-          path: ~/${{ steps.check.outputs.latest-tag }}-osx.pkg
-          key: swift-macos-${{ steps.check.outputs.latest-tag }}-toolchain
-      - name: Download macOS toolchain
-        if: ${{ steps.cache-toolchain-macos.outputs.cache-hit != 'true' }}
-        run: |
-          SWIFT_TAG="${{ steps.check.outputs.latest-tag }}"
-          if [[ ${{ matrix.version }} = 'release'* ]]; then
-            # downcase "swift-5.10.1-RELEASE" to "swift-5.10.1-release"
-            SWIFT_BRANCH=$(echo "$SWIFT_TAG" | tr '[:upper:]' '[:lower:]')
-          elif [ ${{ matrix.version }} = 'devel' ]; then
-            SWIFT_BRANCH="swift-6.0-branch"
-          else
-            SWIFT_BRANCH="development"
-          fi
-          cd
-          wget -q https://download.swift.org/$SWIFT_BRANCH/xcode/$SWIFT_TAG/$SWIFT_TAG-osx.pkg
-          echo "got latest toolchain: ${SWIFT_TAG}"
   build-sdk-and-tests:
     runs-on: ${{ matrix.os }}
     needs: get-latest-toolchain
