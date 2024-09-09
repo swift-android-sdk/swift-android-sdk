@@ -174,7 +174,7 @@ for termuxPackage in termuxPackages {
   guard let packagePathRange = packages.range(of: "Filename: \\S+/\(termuxPackage)_\\S+", options: .regularExpression) else {
     fatalError("couldn't find \(termuxPackage) in Packages list")
   }
-  let packagePath = packages[packagePathRange]
+  let packagePath = packages[packagePathRange].dropFirst("Filename: ".count).description
 
   guard let packageNameRange = packagePath.range(of: "\(termuxPackage)_\\S+", options: .regularExpression) else {
     fatalError("couldn't extract \(termuxPackage) .deb package from package path")
