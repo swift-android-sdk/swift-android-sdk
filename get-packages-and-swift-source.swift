@@ -171,7 +171,7 @@ if !fmd.fileExists(atPath: termuxArchive.appendingPathComponent("Packages-\(ANDR
 let packages = try String(contentsOfFile: termuxArchive.appendingPathComponent("Packages-\(ANDROID_ARCH)"), encoding: .utf8)
 
 for termuxPackage in termuxPackages {
-  guard let packagePathRange = packages.range(of: "\\S+\(termuxPackage)_\\S+", options: .regularExpression) else {
+  guard let packagePathRange = packages.range(of: "Filename: \\S+/\(termuxPackage)_\\S+", options: .regularExpression) else {
     fatalError("couldn't find \(termuxPackage) in Packages list")
   }
   let packagePath = packages[packagePathRange]
