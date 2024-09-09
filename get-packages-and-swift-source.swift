@@ -1,7 +1,9 @@
 import Foundation
 
 // The Termux packages to download and unpack
-var termuxPackages = ["libicu", "libicu-static", "libandroid-spawn", "libcurl", "libxml2", "libnghttp3"]
+// libxml2 needs liblzma and libiconv
+// libcurl needs zlib, libnghttp3, libnghttp2, libssh2, and openssl
+var termuxPackages = ["libicu", "libicu-static", "libandroid-spawn", "libcurl", "zlib", "libxml2", "libnghttp3", "libnghttp2", "libssh2", "openssl", "liblzma", "libiconv"]
 let termuxURL = "https://packages.termux.dev/apt/termux-main"
 
 let swiftRepos = ["llvm-project", "swift", "swift-experimental-string-processing", "swift-corelibs-libdispatch",
