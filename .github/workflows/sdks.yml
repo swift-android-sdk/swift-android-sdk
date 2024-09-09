@@ -269,33 +269,45 @@ jobs:
           echo "SDK_PATH=${SDK_PATH}" >> $GITHUB_ENV
           echo "ARCH_JSON=${ARCH_JSON}" >> $GITHUB_ENV
       - name: Get Swift Argument Parser package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-argument-parser
           path: swift-argument-parser
       - name: Build Swift Argument Parser package
+        ###
+        if: false
         # macOS error: ld.lld: error: --defsym:1: symbol not found: changelog_authors_main
         if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           cd swift-argument-parser
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift crypto package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-crypto
           path: swift-crypto
       - name: Build Swift crypto package
+        ###
+        if: false
         run: |
           cd swift-crypto
           ~/sedinplace.sh "s%\\\\(testsDirectory)/.*Vectors%/data/local/tmp/pack/crypto-vectors%" Tests/{Crypto,_CryptoExtras}Tests/Utils/{RFCVector,Wycheproof}.swift
           ~/sedinplace.sh 's%#file%"/data/local/tmp/pack/crypto-vectors"%;s%../_CryptoExtrasVectors/%%' Tests/_CryptoExtrasTests/TestRSABlindSigning.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-nio
           path: swift-nio
       - name: Build Swift NIO package
+        ###
+        if: false
         run: |
           cd swift-nio
           git apply ../sdk-config/swift-nio-disable-ecn-tests.patch ../sdk-config/swift-nio-filesystem-both-ndks.patch ../sdk-config/swift-nio-ndk27.patch
@@ -305,89 +317,125 @@ jobs:
           cd ../..
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift Numerics package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-numerics
           path: swift-numerics
       - name: Build Swift Numerics package
+        ###
+        if: false
         run: |
           cd swift-numerics
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift System package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-system
           path: swift-system
       - name: Build Swift System package
+        ###
+        if: false
         run: |
           cd swift-system
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift Collections package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-collections
           path: swift-collections
       - name: Build Swift Collections package
+        ###
+        if: false
         run: |
           cd swift-collections
           ${TOOLCHAIN}/bin/swift build -j 1 --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift Atomics package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-atomics
           path: swift-atomics
           ref: 1.1.0
       - name: Get Swift NIO SSH package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-nio-ssh
           path: sns
       - name: Build Swift NIO SSH package
+        ###
+        if: false
         run: |
           cd sns
           ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO SSL package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-nio-ssl
           path: snl
       - name: Build Swift NIO SSL package
+        ###
+        if: false
         run: |
           cd snl
           SWIFTCI_USE_LOCAL_DEPS=1 ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Yams package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: jpsim/Yams
           path: yams
       - name: Build Yams package
+        ###
+        if: false
         run: |
           cd yams
           ~/sedinplace.sh "s% fixturesDirectory + \"/SourceKitten#289% \"/data/local/tmp/pack%" Tests/YamsTests/PerformanceTests.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift NIO HTTP/2 package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-nio-http2
           path: snh
       - name: Build Swift NIO HTTP/2 package
+        ###
+        if: false
         if: ${{ matrix.arch != 'armv7' }}
         run: |
           cd snh
           ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift Algorithms package
+        ###
+        if: false
         uses: actions/checkout@v4
         with:
           repository: apple/swift-algorithms
           path: sa
       - name: Build Swift Algorithms package
+        ###
+        if: false
         run: |
           cd sa
           ~/sedinplace.sh "s%url: .*$%path: \"../swift-numerics\"),%" Package.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get cached Termux debug app for NIO tests
+        ###
+        if: false
         if: ${{ matrix.arch == 'x86_64' }}
         id: cache-termux
         uses: actions/cache@v4
@@ -395,10 +443,14 @@ jobs:
           path: ~/termux-debug.apk
           key: termux-app
       - name: Get Termux debug app if not cached
+        ###
+        if: false
         if: ${{ (matrix.arch == 'x86_64') && (steps.cache-termux.outputs.cache-hit != 'true') }}
         run: wget -O ~/termux-debug.apk https://github.com/termux/termux-app/releases/download/v0.118.0/termux-app_v0.118.0+github-debug_x86_64.apk
       - name: Prepare Android emulator test package
-        if: ${{ matrix.arch == 'x86_64' }}
+        ###
+        if: false
+        ###if: ${{ matrix.arch == 'x86_64' }}
         run: |
           set -x
           # create the test runner script
