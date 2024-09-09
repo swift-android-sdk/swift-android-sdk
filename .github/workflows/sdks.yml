@@ -414,7 +414,7 @@ jobs:
       - name: Build Swift NIO HTTP/2 package
         ###
         if: false
-        if: ${{ matrix.arch != 'armv7' }}
+        ###if: ${{ matrix.arch != 'armv7' }}
         run: |
           cd snh
           ~/sedinplace.sh "s%url: .*swift-\([a-z]*\)\.git.*$%path: \"../swift-\1\"),%g" Package.swift
@@ -436,7 +436,7 @@ jobs:
       - name: Get cached Termux debug app for NIO tests
         ###
         if: false
-        if: ${{ matrix.arch == 'x86_64' }}
+        ###if: ${{ matrix.arch == 'x86_64' }}
         id: cache-termux
         uses: actions/cache@v4
         with:
@@ -445,7 +445,7 @@ jobs:
       - name: Get Termux debug app if not cached
         ###
         if: false
-        if: ${{ (matrix.arch == 'x86_64') && (steps.cache-termux.outputs.cache-hit != 'true') }}
+        ###if: ${{ (matrix.arch == 'x86_64') && (steps.cache-termux.outputs.cache-hit != 'true') }}
         run: wget -O ~/termux-debug.apk https://github.com/termux/termux-app/releases/download/v0.118.0/termux-app_v0.118.0+github-debug_x86_64.apk
       - name: Prepare Android emulator test package
         ###
