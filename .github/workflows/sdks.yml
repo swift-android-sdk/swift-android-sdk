@@ -562,30 +562,14 @@ jobs:
             echo "latest=$(echo $TAG | cut -d- -f4-6)" >> $GITHUB_OUTPUT
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-      - name: Get cached x86_64 SDK
-        id: cache-sdk-x86_64
-        uses: actions/cache@v4
-        with:
-          path: ~/swift-${{ matrix.version }}-android-x86_64-*-sdk.tar.xz
-          key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-x86_64-ndk-sdk
-      - name: Get cached aarch64 SDK
-        id: cache-sdk-aarch64
-        uses: actions/cache@v4
-        with:
-          path: ~/swift-${{ matrix.version }}-android-aarch64-*-sdk.tar.xz
-          key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-aarch64-ndk-sdk
-      - name: Get cached armv7 SDK
-        id: cache-sdk-armv7
-        uses: actions/cache@v4
-        with:
-          path: ~/swift-${{ matrix.version }}-android-armv7-ndk-sdk.tar.xz
-          key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-armv7-ndk-sdk
+      - name: Download SDK Artifacts
+        uses: actions/download-artifact@v6
       - name: Assemble SDK
-        if: ${{ (steps.cache-sdk-x86_64.outputs.cache-hit == 'true') && (steps.cache-sdk-aarch64.outputs.cache-hit == 'true') && (steps.cache-sdk-armv7.outputs.cache-hit == 'true') }}
         id: assemble-sdk
         run: |
           set -x
-          SDK_DIR=swift-${{ matrix.version }}-android-sdk
+          ls -la ~/
+          SDK_DIR=swift-${{ steps.version.outputs.tag }}-android-sdk
           mkdir ${SDK_DIR}
 
           for arch in x86_64 aarch64 armv7; do
@@ -634,6 +618,6 @@ jobs:
       - name: Upload Assembled SDK
         uses: actions/upload-artifact@v4
         with:
-          name: swift-${{ matrix.version }}-android-sdk
-          path: ~/swift-${{ matrix.version }}-android-sdk.tar.xz
+          name: swift-${{ steps.version.outputs.tag }}-android-sdk
+          path: ~/swift-${{ steps.version.outputs.tag }}-android-sdk.tar.xz
 
