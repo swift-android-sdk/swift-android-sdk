@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version: [release, devel, trunk]
+        ###version: [release, devel, trunk]
+        version: [release]
     outputs:
       release-version: ${{ steps.check.outputs.release-tag }}
       devel-version: ${{ steps.check.outputs.devel-tag }}
@@ -72,9 +73,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [release, devel, trunk]
+        ###version: [release, devel, trunk]
+        version: [release]
         arch: [x86_64, aarch64, armv7]
-        os: [ubuntu-22.04, macos-13]
+        ###os: [ubuntu-22.04, macos-13]
+        os: [ubuntu-22.04]
     env:
       ANDROID_API_LEVEL: 24
     steps:
@@ -477,9 +480,107 @@ jobs:
           fi
 
       - name: Run tests on Android x86_64 emulator
-        if: ${{ matrix.arch == 'x86_64' }}
+        if: false
+        ###if: ${{ matrix.arch == 'x86_64' }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 24
           arch: x86_64
           script: ~/test-toolchain.sh
+  assemble-sdks:
+    runs-on: ubuntu-22.04
+    needs: build-sdk-and-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        ###version: [release, devel, trunk]
+        version: [release]
+    steps:
+      - name: Extract the latest version string
+        id: version
+        run: |
+          if [[ ${{ matrix.version }} = 'release' ]]; then
+            TAG="${{ needs.get-latest-toolchain.outputs.release-version }}"
+            echo "latest=$(echo $TAG | cut -d- -f2)" >> $GITHUB_OUTPUT
+          elif [ ${{ matrix.version }} = 'devel' ]; then
+            TAG="${{ needs.get-latest-toolchain.outputs.devel-version }}"
+            echo "latest=$(echo $TAG | cut -d- -f5-7)" >> $GITHUB_OUTPUT
+          else
+            TAG="${{ needs.get-latest-toolchain.outputs.trunk-version }}"
+            echo "latest=$(echo $TAG | cut -d- -f4-6)" >> $GITHUB_OUTPUT
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - name: Get cached x86_64 SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ~/swift-${{ matrix.version }}-android-x86_64-*-sdk.tar.xz
+          key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-x86_64-ndk-sdk
+      - name: Get cached aarch64 SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ~/swift-${{ matrix.version }}-android-aarch64-*-sdk.tar.xz
+          key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-aarch64-ndk-sdk
+      - name: Get cached armv7 SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ~/swift-${{ matrix.version }}-android-armv7-ndk-sdk.tar.xz
+          key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-armv7-ndk-sdk
+      - name: Assemble SDK
+        id: assemble-sdk
+        run: |
+          set -x
+          SDK_DIR=swift-${{ matrix.version }}-android-sdk
+          mkdir ${SDK_DIR}
+
+          for arch in x86_64 aarch64 armv7; do
+            MERGEDIR="swift-${{ matrix.version }}-android-${arch}-ndk-sdk"
+            mkdir ${MERGEDIR}
+            pushd ${MERGEDIR}
+            tar xf ~/${MERGEDIR}.tar.xz
+
+            ARCH=`ls usr/lib/swift_static/android/*/swiftrt.o | tr '/' '\n' | tail -n 2 | head -n 1`
+
+            TRIPLE="${ARCH}-linux-android"
+            if [[ $ARCH == 'armv7' ]]; then
+                TRIPLE="arm-linux-androideabi"
+            fi
+
+            echo "Creating ${TRIPLE} from ${zip}…"
+
+            mkdir -p usr/lib/${TRIPLE}
+            rm -r usr/bin
+            mv usr/lib/*.a usr/lib/swift_static/android/${ARCH}/
+            mv usr/lib/swift_static/android/*.a usr/lib/swift_static/android/${ARCH}/
+            mv usr/lib/swift/android/*.so usr/lib/${TRIPLE}
+            mv usr/lib/*.* usr/lib/${TRIPLE}
+            mv usr/lib/icu usr/lib/${TRIPLE}
+            mv usr/lib/pkgconfig usr/lib/${TRIPLE}
+            #mv usr/lib/swift/pm usr/lib/${TRIPLE}
+            rm -r usr/lib/swift/pm
+            # clear the symlink to /home/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/swift-5.10.1-RELEASE-ubuntu22.04/usr/lib/clang/15.0.0
+            # we will reference it with an -I flag in the destination.json instead
+            rm usr/lib/swift_static/clang
+            rm usr/lib/swift/clang
+
+            popd
+
+            # copy all the processed SDK files into the SDK_DIR
+            rsync -ar ${MERGE_DIR}/*-sdk/ "${SDK_DIR}"
+          done
+
+          # remove the destination files, which include invalid absolute paths
+          rm "${SDK_DIR}"/usr/swiftpm-*.json
+
+          echo "Merged toolchains into ${SDK_DIR}"
+          du -skh "${SDK_DIR}"
+          tar cJf "${SDK_DIR}".tar.xz "${SDK_DIR}"
+          shasum -a 256 .build/"${SDK_DIR}".tar.xz
+      - name: Upload Assembled SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-${{ matrix.version }}-android-sdk
+          path: ~/swift-${{ matrix.version }}-android-sdk.tar.xz
+
