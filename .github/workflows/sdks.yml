@@ -279,7 +279,7 @@ jobs:
         ###
         if: false
         # macOS error: ld.lld: error: --defsym:1: symbol not found: changelog_authors_main
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        ###if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           cd swift-argument-parser
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
