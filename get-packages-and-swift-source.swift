@@ -1,7 +1,7 @@
 import Foundation
 
 // The Termux packages to download and unpack
-var termuxPackages = ["libicu", "libicu-static", "libandroid-spawn", "libcurl", "libxml2"]
+var termuxPackages = ["libicu", "libicu-static", "libandroid-spawn", "libcurl", "libxml2", "libnghttp3"]
 let termuxURL = "https://packages.termux.dev/apt/termux-main"
 
 let swiftRepos = ["llvm-project", "swift", "swift-experimental-string-processing", "swift-corelibs-libdispatch",
