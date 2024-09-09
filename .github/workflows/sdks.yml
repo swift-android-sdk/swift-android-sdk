@@ -586,12 +586,7 @@ jobs:
             pushd ${MERGEDIR}
             # e.g. swift-android-sdk-release-aarch64-host-ubuntu-22.04/swift-release-android-aarch64-24-sdk.tar.xz
             tar xf *.tar.xz
-            ls -1
-            ls -1 *
-
             pushd swift-*-sdk
-
-            ls -1
 
             ARCH=`ls usr/lib/swift_static/android/*/swiftrt.o | tr '/' '\n' | tail -n 2 | head -n 1`
 
@@ -624,16 +619,17 @@ jobs:
             popd
 
             # copy all the processed SDK files into the SDK_DIR
-            ls -1
             rsync -ar ${MERGEDIR}/swift-*-sdk/ "${SDK_DIR}"
           done
 
           echo "Merged toolchains into ${SDK_DIR}"
           du -skh "${SDK_DIR}"
           tar cJf "${SDK_DIR}".tar.xz "${SDK_DIR}"
+          du -skh "${SDK_DIR}".tar.xz
           shasum -a 256 "${SDK_DIR}".tar.xz
       - name: Upload Assembled SDK
         uses: actions/upload-artifact@v4
         with:
+          name: ${{ steps.version.outputs.tag }}-android-sdk.tar.xz
           path: ${{ steps.download-artifacts.outputs.download-path }}/${{ steps.version.outputs.tag }}-android-sdk.tar.xz
 
