@@ -575,7 +575,8 @@ jobs:
           pushd ${{ steps.download-artifacts.outputs.download-path }}
           ls -la */*.tar.xz
 
-          SDK_DIR=swift-${{ steps.version.outputs.tag }}-android-sdk
+          # e.g. swift-5.10.1-RELEASE-android-sdk
+          SDK_DIR=${{ steps.version.outputs.tag }}-android-sdk
           echo "Merging $(echo $(ls -1)) into SDK_DIR: ${SDK_DIR}"
 
           mkdir ${SDK_DIR}
@@ -601,6 +602,9 @@ jobs:
 
             echo "Creating ${TRIPLE} from ${MERGEDIR}…"
 
+            # remove the destination files, which include invalid absolute paths
+            rm usr/swiftpm-*.json
+
             mkdir -p usr/lib/${TRIPLE}
             rm -r usr/bin
             mv usr/lib/*.a usr/lib/swift_static/android/${ARCH}/
@@ -620,11 +624,9 @@ jobs:
             popd
 
             # copy all the processed SDK files into the SDK_DIR
-            rsync -ar ${MERGE_DIR}/swift-*-sdk/ "${SDK_DIR}"
+            ls -1
+            rsync -ar ${MERGEDIR}/swift-*-sdk/ "${SDK_DIR}"
           done
-
-          # remove the destination files, which include invalid absolute paths
-          rm "${SDK_DIR}"/usr/swiftpm-*.json
 
           echo "Merged toolchains into ${SDK_DIR}"
           du -skh "${SDK_DIR}"
