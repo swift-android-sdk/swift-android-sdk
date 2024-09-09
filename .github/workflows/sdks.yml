@@ -563,12 +563,15 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Download SDK Artifacts
-        uses: actions/download-artifact@v6
+        id: download-artifact
+        uses: actions/download-artifact@v4
       - name: Assemble SDK
         id: assemble-sdk
         run: |
           set -x
           ls -la ~/
+          ls -lad ${{ steps.version.outputs.download-path }}
+          ls -la ${{ steps.version.outputs.download-path }}
           SDK_DIR=swift-${{ steps.version.outputs.tag }}-android-sdk
           mkdir ${SDK_DIR}
 
