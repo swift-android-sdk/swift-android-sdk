@@ -563,23 +563,26 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Download SDK Artifacts
-        id: download-artifact
+        id: download-artifacts
         uses: actions/download-artifact@v4
       - name: Assemble SDK
         id: assemble-sdk
         run: |
           set -x
           ls -la ~/
-          ls -lad ${{ steps.version.outputs.download-path }}
-          ls -la ${{ steps.version.outputs.download-path }}
+          ls -lad ${{ steps.download-artifacts.outputs.download-path }}
+          ls -la ${{ steps.download-artifacts.outputs.download-path }}
+
+          ls -la ${{ steps.download-artifacts.outputs.download-path }}/*
+
           SDK_DIR=swift-${{ steps.version.outputs.tag }}-android-sdk
           mkdir ${SDK_DIR}
 
           for arch in x86_64 aarch64 armv7; do
-            MERGEDIR="swift-${{ matrix.version }}-android-${arch}-ndk-sdk"
+            MERGEDIR="swift-android-sdk-${{ matrix.version }}-${arch}-host-ubuntu-22.04"
             mkdir ${MERGEDIR}
             pushd ${MERGEDIR}
-            tar xf ~/${MERGEDIR}.tar.xz
+            tar xf ${{ steps.download-artifacts.outputs.download-path }}/${MERGEDIR}.tar.xz
 
             ARCH=`ls usr/lib/swift_static/android/*/swiftrt.o | tr '/' '\n' | tail -n 2 | head -n 1`
 
