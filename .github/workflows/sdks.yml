@@ -541,7 +541,7 @@ jobs:
           script: ~/test-toolchain.sh
   assemble-sdks:
     runs-on: ubuntu-22.04
-    needs: build-sdk-and-tests
+    needs: [build-sdk-and-tests, get-latest-toolchain]
     strategy:
       fail-fast: false
       matrix:
