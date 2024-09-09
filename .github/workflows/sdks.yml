@@ -511,24 +511,25 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Get cached x86_64 SDK
-        id: cache-sdk
+        id: cache-sdk-x86_64
         uses: actions/cache@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-x86_64-*-sdk.tar.xz
           key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-x86_64-ndk-sdk
       - name: Get cached aarch64 SDK
-        id: cache-sdk
+        id: cache-sdk-aarch64
         uses: actions/cache@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-aarch64-*-sdk.tar.xz
           key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-aarch64-ndk-sdk
       - name: Get cached armv7 SDK
-        id: cache-sdk
+        id: cache-sdk-armv7
         uses: actions/cache@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-armv7-ndk-sdk.tar.xz
           key: ${{ matrix.version }}-${{ steps.version.outputs.latest }}-armv7-ndk-sdk
       - name: Assemble SDK
+        if: ${{ (steps.cache-sdk-x86_64.outputs.cache-hit == 'true') && (steps.cache-sdk-aarch64.outputs.cache-hit == 'true') && (steps.cache-sdk-armv7.outputs.cache-hit == 'true') }}
         id: assemble-sdk
         run: |
           set -x
