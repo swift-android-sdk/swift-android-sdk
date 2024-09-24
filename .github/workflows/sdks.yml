@@ -531,9 +531,9 @@ jobs:
 
           mkdir ${SDK_DIR}
 
-          for MERGEDIR in swift-android-sdk-${{ matrix.version }}-*-host-ubuntu-22.04; do
+          for MERGEDIR in swift-android-sdk-${{ matrix.version }}-*; do
             pushd ${MERGEDIR}
-            # e.g. swift-android-sdk-release-aarch64-host-ubuntu-22.04/swift-release-android-aarch64-24-sdk.tar.xz
+            # e.g. swift-android-sdk-release-aarch64/swift-release-android-aarch64-24-sdk.tar.xz
             tar xf *.tar.xz
             pushd swift-*-sdk
 
