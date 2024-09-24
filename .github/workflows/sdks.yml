@@ -551,11 +551,8 @@ jobs:
 
             mkdir -p usr/lib/${TRIPLE}
             rm -r usr/bin
-            mv usr/lib/*.a usr/lib/swift_static/android/${ARCH}/
             mv usr/lib/swift_static/android/*.a usr/lib/swift_static/android/${ARCH}/
             mv usr/lib/swift/android/*.so usr/lib/${TRIPLE}
-            mv usr/lib/*.* usr/lib/${TRIPLE}
-            mv usr/lib/icu usr/lib/${TRIPLE}
             mv usr/lib/pkgconfig usr/lib/${TRIPLE}
             #mv usr/lib/swift/pm usr/lib/${TRIPLE}
             rm -r usr/lib/swift/pm
