@@ -72,7 +72,8 @@ jobs:
       matrix:
         version: [release, devel, trunk]
         arch: [x86_64, aarch64, armv7]
-        os: [ubuntu-22.04, macos-13]
+        os: [ubuntu-22.04]
+        #os: [ubuntu-22.04, macos-13]
         exclude:
           - os: macos-13
             version: trunk
@@ -136,6 +137,7 @@ jobs:
       - name: Build Swift ${{ matrix.version }} Android SDK if not the latest
         # build-script currently only works on ubuntu
         #if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') && startsWith(matrix.os, 'ubuntu') }}
+        if: startsWith(matrix.os, 'ubuntu') }}
         env:
           SWIFT_TAG: ${{ steps.version.outputs.tag }}
           ANDROID_ARCH: ${{ matrix.arch }}
@@ -171,7 +173,7 @@ jobs:
           perl -pi -e "s%/data/data/com.termux/files%$SDK%g" $SDK/usr/lib/pkgconfig/sqlite3.pc
           perl -pi -e 's%String\(cString: getpass%\"fake\" //%' swiftpm/Sources/PackageRegistryCommand/PackageRegistryCommand+Auth.swift
 
-          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK_LATEST_HOME --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax --swift-testing --install-swift-testing --swift-testing-macros --install-swift-testing-macros
+          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK_LATEST_HOME --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax --swiftsyntax --install-swiftsyntax --swift-testing --install-swift-testing --swift-testing-macros --install-swift-testing-macros
 
           cp $ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$(echo ${{ matrix.arch }} | sed "s/v7//")-linux-android*/libc++_shared.so $SDK/usr/lib
           patchelf --set-rpath \$ORIGIN $SDK/usr/lib/swift/android/libdispatch.so
