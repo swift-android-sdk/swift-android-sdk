@@ -516,7 +516,7 @@ jobs:
       - name: Download SDK Artifacts
         id: download-artifacts
         with:
-          pattern: swift-android-sdk-${{ matrix.version }}-*-host-ubuntu-22.04
+          pattern: swift-android-sdk-${{ matrix.version }}-*
         uses: actions/download-artifact@v4
       - name: Assemble SDK
         id: assemble-sdk
