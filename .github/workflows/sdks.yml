@@ -101,10 +101,12 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
       - name: Get cached SDK
         id: cache-sdk
+        ###
+        if: false
         uses: actions/cache/restore@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.tag }}-${{ matrix.arch }}-ndk-27b-sdk-KEY
+          key: ${{ steps.version.outputs.tag }}-${{ matrix.arch }}-ndk-27b-sdk
       - name: Clone
         uses: actions/checkout@v4
         with:
@@ -178,7 +180,8 @@ jobs:
           perl -pi -e "s%/data/data/com.termux/files%$SDK%g" $SDK/usr/lib/pkgconfig/sqlite3.pc
           perl -pi -e 's%String\(cString: getpass%\"fake\" //%' swiftpm/Sources/PackageRegistryCommand/PackageRegistryCommand+Auth.swift
 
-          ls $PWD/swift-syntax
+          # swift-testing depends on swift-testing-macros, but it shouldn't
+          perl -pi -e "s%swift_testing_macros.SwiftTestingMacros%swift.Swift%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
 
           ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK_LATEST_HOME --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax --swift-testing --install-swift-testing
           #--swift-testing-macros --install-swift-testing-macros --extra-cmake-options="-DSwiftSyntax_DIR=$PWD/swift-syntax"
@@ -193,11 +196,12 @@ jobs:
           tar cJf ~/$SDK_NAME.tar.xz $SDK_NAME
           rm -rf build/ $SDK_NAME llvm-project/
       - name: Cache new SDK on linux
-        if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') && startsWith(matrix.os, 'ubuntu') }}
+        if: false
+        ###if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') && startsWith(matrix.os, 'ubuntu') }}
         uses: actions/cache/save@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.tag }}-${{ matrix.arch }}-ndk-27b-sdk-KEY
+          key: ${{ steps.version.outputs.tag }}-${{ matrix.arch }}-ndk-27b-sdk
       - name: Setup Swift ${{ matrix.version }} Android SDK
         id: sdk-setup
         run: |
