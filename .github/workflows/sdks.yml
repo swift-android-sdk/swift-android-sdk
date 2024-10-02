@@ -183,11 +183,13 @@ jobs:
 
           # swift-testing depends on swift-testing-macros, but it shouldn't
           perl -pi -e "s%swift_testing_macros.SwiftTestingMacros%swift.Swift%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
+          perl -pi -e "s%if self.has_cross_compile_hosts() and self.is_darwin_host(base_target)%if self.has_cross_compile_hosts()%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
 
           # make sure swift-syntax is where we expect
           ls $PWD/swift-syntax
 
-          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK_LATEST_HOME --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --swiftsyntax --install-swiftsyntax --swift-testing --install-swift-testing 
+          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk $ANDROID_NDK_LATEST_HOME --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --swift-testing --install-swift-testing 
+          #--swiftsyntax --install-swiftsyntax 
           #--swift-testing-macros --install-swift-testing-macros 
           #--extra-cmake-options="-DSwiftSyntax_DIR=$PWD/swift-syntax"
 
