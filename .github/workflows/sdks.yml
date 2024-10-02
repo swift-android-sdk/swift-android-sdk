@@ -184,6 +184,8 @@ jobs:
           # swift-testing depends on swift-testing-macros, but it shouldn't
           perl -pi -e "s%swift_testing_macros.SwiftTestingMacros%swift.Swift%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
           perl -pi -e "s%if self.has_cross_compile_hosts() and self.is_darwin_host(base_target)%if self.has_cross_compile_hosts()%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
+          # fixup def should_install
+          perl -pi -e "s%return self.args.install_swift_testing_macros%return self.args.install_swift_testing%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
 
           # make sure swift-syntax is where we expect
           ls $PWD/swift-syntax
