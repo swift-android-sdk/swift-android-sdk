@@ -183,9 +183,12 @@ jobs:
 
           # swift-testing depends on swift-testing-macros, but it shouldn't
           perl -pi -e "s%swift_testing_macros.SwiftTestingMacros%swift.Swift%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
+          perl -pi -e "s%# Manually iterate the cross compile hosts.%print(f'### swift_testing.py self.args.cross_compile_hosts: {self.args.cross_compile_hosts}', flush=True)%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
           perl -pi -e "s%if self.has_cross_compile_hosts\(\) and self.is_darwin_host\(base_target\)%if self.has_cross_compile_hosts\(\)%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
           # fixup def should_install
           perl -pi -e "s%return self.args.install_swift_testing_macros%return self.args.install_swift_testing%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
+
+          cat swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
 
           # make sure swift-syntax is where we expect
           ls $PWD/swift-syntax
@@ -198,6 +201,8 @@ jobs:
           # visualize output
           tree $SDK/usr/lib
 
+          file $SDK/usr/lib/swift/*/libTesting.so
+
           # make sure we have built the Testing.swiftmodule
           tree $SDK/usr/lib | grep Testing.swiftmodule
 
@@ -207,11 +212,11 @@ jobs:
 
           tar cJf ~/$SDK_NAME.tar.xz $SDK_NAME
           rm -rf build/ $SDK_NAME llvm-project/
+
       - name: Upload Artifacte
         if: true
         uses: actions/upload-artifact@v4
         with:
-          name: swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
           compression-level: 0
 
