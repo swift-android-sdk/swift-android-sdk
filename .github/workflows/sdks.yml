@@ -207,6 +207,18 @@ jobs:
 
           tar cJf ~/$SDK_NAME.tar.xz $SDK_NAME
           rm -rf build/ $SDK_NAME llvm-project/
+      - name: Upload Artifacte
+        if: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
+          path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
+          compression-level: 0
+
+      # no need to perform subsequent builds
+      - name: Exit early
+        run: exit 999
+
       - name: Cache new SDK on linux
         if: false
         ###if: ${{ (steps.cache-sdk.outputs.cache-hit != 'true') && startsWith(matrix.os, 'ubuntu') }}
