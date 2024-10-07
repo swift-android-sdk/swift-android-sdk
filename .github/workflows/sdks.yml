@@ -267,11 +267,6 @@ jobs:
 
             NDK_PREBUILT=${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/darwin-x86_64
 
-            # With the full SDK, the libs are all located in:
-            #"-L", "${SDK}/usr/lib/${ARCHID}"
-            # But with the partial SDK, they are divided between:
-            #"-L", "${SDK_PATH}/usr/lib",
-            #"-L", "${SDK_PATH}/usr/lib/swift/android",
             cat > ${ARCH_JSON} << EOF
             {
                 "version": 1,
@@ -282,8 +277,7 @@ jobs:
                 "extra-cpp-flags": [ "-lstdc++" ],
                 "extra-swiftc-flags": [
                     "-resource-dir", "${SDK_PATH}/usr/lib/swift",
-                    "-tools-directory", "${NDK_PREBUILT}/bin",
-                    "-L", "${SDK_PATH}/usr/lib"
+                    "-tools-directory", "${NDK_PREBUILT}/bin"
                 ]
             }
           EOF
@@ -303,10 +297,9 @@ jobs:
           repository: apple/swift-argument-parser
           path: swift-argument-parser
       - name: Build Swift Argument Parser package
-        # macOS error: ld.lld: error: --defsym:1: symbol not found: changelog_authors_main
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           cd swift-argument-parser
+          rm Examples/count-lines/CountLines.swift Tools/changelog-authors/*.swift
           ${TOOLCHAIN}/bin/swift build --build-tests --destination ${ARCH_JSON} -Xlinker -rpath -Xlinker \$ORIGIN/lib/swift/android
       - name: Get Swift crypto package
         uses: actions/checkout@v4
@@ -328,6 +321,10 @@ jobs:
       - name: Build Swift NIO package
         run: |
           cd swift-nio
+          # Disable new tests that don't compile for 32-bit ARM yet
+          if ${{ matrix.arch == 'armv7' }}; then
+            rm Tests/NIOCoreTests/ByteBufferQUICBinaryEncodingStrategyTests.swift
+          fi
           git apply ../sdk-config/swift-nio-disable-ecn-tests.patch ../sdk-config/swift-nio-filesystem.patch ../sdk-config/swift-nio-ndk27.patch
           ${TOOLCHAIN}/bin/swift package update
           cd .build/checkouts/
@@ -451,9 +448,8 @@ jobs:
           mkdir -p pack/lib/swift/android
           TARGET="x86_64-unknown-linux-android$ANDROID_API_LEVEL"
 
-          if ${{ startsWith(matrix.os, 'ubuntu') }}; then
-            cp swift-argument-parser/.build/$TARGET/debug/{generate-manual,math,repeat,roll,swift-argument-parserPackageTests.xctest} pack
-            echo 'adb shell /data/local/tmp/pack/swift-argument-parserPackageTests.xctest' >> ~/test-toolchain.sh
+          cp swift-argument-parser/.build/$TARGET/debug/{generate-manual,math,repeat,roll,swift-argument-parserPackageTests.xctest} pack
+          echo 'adb shell /data/local/tmp/pack/swift-argument-parserPackageTests.xctest' >> ~/test-toolchain.sh
 
           wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/elf-cleaner.cpp
           wget -q https://raw.githubusercontent.com/termux/termux-elf-cleaner/v2.1.1/elf.h
@@ -462,7 +458,6 @@ jobs:
           clang -c arghandling.c
           clang -o elf-cleaner arghandling.o elf-cleaner.cpp -DCOPYRIGHT=\"foo\" -DPACKAGE_NAME=\"termux-elf-cleaner\" -DPACKAGE_VERSION=\"2.2.1\"
           ./elf-cleaner --api-level $ANDROID_API_LEVEL pack/{generate-manual,math,repeat,roll} || true
-          fi
 
           cp swift-crypto/.build/$TARGET/debug/swift-cryptoPackageTests.xctest pack
           echo 'adb shell /data/local/tmp/pack/swift-cryptoPackageTests.xctest' >> ~/test-toolchain.sh
@@ -522,3 +517,82 @@ jobs:
           api-level: 29
           arch: x86_64
           script: ~/test-toolchain.sh
+      - name: Get cached SDK (aarch64)
+        if: ${{ matrix.os == 'ubuntu-22.04' && matrix.arch == 'x86_64' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/swift-${{ matrix.version }}-android-aarch64-*-sdk.tar.xz
+          key: ${{ steps.version.outputs.tag }}-aarch64-ndk-27b-sdk
+          fail-on-cache-miss: true
+      - name: Get cached SDK (armv7)
+        if: ${{ matrix.os == 'ubuntu-22.04' && matrix.arch == 'x86_64' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/swift-${{ matrix.version }}-android-armv7-*-sdk.tar.xz
+          key: ${{ steps.version.outputs.tag }}-armv7-ndk-27b-sdk
+          fail-on-cache-miss: true
+      - name: Assemble SDK
+        if: ${{ matrix.os == 'ubuntu-22.04' && matrix.arch == 'x86_64' }}
+        id: assemble-sdk
+        run: |
+          set -x
+          ls -lah ~/swift-*-sdk.tar.xz
+
+          # e.g. swift-5.10.1-RELEASE-android-sdk
+          SDK_DIR=${{ steps.version.outputs.tag }}-android-${ANDROID_API_LEVEL}-sdk
+          echo "SDK_DIR=${SDK_DIR}" >> $GITHUB_ENV
+          mkdir ${SDK_DIR}
+
+          for SDK_PATH in ~/swift-*-sdk.tar.xz; do
+            MERGEDIR=$(basename $SDK_PATH .tar.xz)
+            mkdir ${MERGEDIR}
+            pushd ${MERGEDIR}
+            # e.g. swift-android-sdk-release-aarch64/swift-release-android-aarch64-24-sdk.tar.xz
+            tar xf ${SDK_PATH}
+            tree swift-*-sdk
+            pushd swift-*-sdk
+
+            ARCH=$(ls usr/lib/swift_static/android/*/swiftrt.o | cut -f 5 -d '/')
+
+            TRIPLE="${ARCH}-linux-android"
+            if [[ $ARCH == 'armv7' ]]; then
+                TRIPLE="arm-linux-androideabi"
+            fi
+
+            echo "Creating ${TRIPLE} from ${MERGEDIR}…"
+
+            mkdir -p usr/lib/${TRIPLE}
+            rm -r usr/bin
+            mv usr/lib/swift_static/android/*.a usr/lib/swift_static/android/${ARCH}/
+            patchelf --set-rpath \$ORIGIN usr/lib/swift/android/lib[FXs]*.so
+            mv usr/lib/*.so* usr/lib/swift/android/*.so* usr/lib/${TRIPLE}
+            mv usr/lib/pkgconfig usr/lib/${TRIPLE}
+            rm -r usr/lib/swift/pm
+            # clear the symlink to /home/runner/work/swift-android-sdk/swift-android-sdk/sdk-config/swift-5.10.1-RELEASE-ubuntu22.04/usr/lib/clang/15.0.0
+            # we will reference it with an -I flag in the destination.json instead
+            rm usr/lib/swift_static/clang
+            rm usr/lib/swift/clang
+
+            popd
+            popd
+
+            # copy all the processed SDK files into the SDK_DIR
+            rsync -ar ${MERGEDIR}/swift-*-sdk/ "${SDK_DIR}"
+          done
+
+          # output visualization of the SDK_DIR file tree
+          tree "${SDK_DIR}"
+
+          echo "Merged toolchains into ${SDK_DIR}"
+          du -skh "${SDK_DIR}"
+          tar cJf "${SDK_DIR}".tar.xz "${SDK_DIR}"
+          du -skh "${SDK_DIR}".tar.xz
+          shasum -a 256 "${SDK_DIR}".tar.xz
+      - name: Upload Assembled SDK
+        if: ${{ matrix.os == 'ubuntu-22.04' && matrix.arch == 'x86_64' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SDK_DIR }}.tar.xz
+          path: ${{ env.SDK_DIR }}.tar.xz
+          compression-level: 0
+

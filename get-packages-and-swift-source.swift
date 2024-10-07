@@ -1,7 +1,9 @@
 import Foundation
 
 // The Termux packages to download and unpack
-var termuxPackages = ["libandroid-spawn", "libcurl", "libxml2"]
+// libxml2 needs liblzma and libiconv
+// libcurl needs zlib, libnghttp3, libnghttp2, libssh2, and openssl
+var termuxPackages = ["libandroid-spawn", "libcurl", "zlib", "libxml2", "libnghttp3", "libnghttp2", "libssh2", "openssl", "liblzma", "libiconv"]
 let termuxURL = "https://packages.termux.dev/apt/termux-main"
 
 let swiftRepos = ["llvm-project", "swift", "swift-experimental-string-processing", "swift-corelibs-libdispatch",
@@ -168,10 +170,10 @@ if !fmd.fileExists(atPath: termuxArchive.appendingPathComponent("Packages-\(ANDR
 let packages = try String(contentsOfFile: termuxArchive.appendingPathComponent("Packages-\(ANDROID_ARCH)"), encoding: .utf8)
 
 for termuxPackage in termuxPackages {
-  guard let packagePathRange = packages.range(of: "\\S+\(termuxPackage)_\\S+", options: .regularExpression) else {
+  guard let packagePathRange = packages.range(of: "Filename: \\S+/\(termuxPackage)_\\S+", options: .regularExpression) else {
     fatalError("couldn't find \(termuxPackage) in Packages list")
   }
-  let packagePath = packages[packagePathRange]
+  let packagePath = packages[packagePathRange].dropFirst("Filename: ".count).description
 
   guard let packageNameRange = packagePath.range(of: "\(termuxPackage)_\\S+", options: .regularExpression) else {
     fatalError("couldn't extract \(termuxPackage) .deb package from package path")
@@ -210,12 +212,59 @@ if !fmd.fileExists(atPath: sdkPath) {
   try fmd.removeItem(atPath: sdkPath.appendingPathComponent("usr/bin/curl-config"))
   try fmd.removeItem(atPath: sdkPath.appendingPathComponent("usr/bin/xml2-config"))
   try fmd.removeItem(atPath: sdkPath.appendingPathComponent("usr/share/man"))
+  try fmd.removeItem(atPath: sdkPath.appendingPathComponent("usr/lib/ossl-modules"))
+  try fmd.removeItem(atPath: sdkPath.appendingPathComponent("usr/lib/engines-3"))
+  try fmd.removeItem(atPath: sdkPath.appendingPathComponent("usr/etc"))
 }
 
-_ = runCommand("patchelf", with: ["--set-rpath", "$ORIGIN",
-          "\(sdkPath.appendingPathComponent("usr/lib/libandroid-spawn.so"))",
-          "\(sdkPath.appendingPathComponent("usr/lib/libcurl.so"))",
-          "\(sdkPath.appendingPathComponent("usr/lib/libxml2.so"))"])
+let libPath = sdkPath.appendingPathComponent("usr/lib")
+/// The path to the shared object file
+func sopath(_ soname: String) -> String {
+  return libPath.appendingPathComponent(soname)
+}
+
+// flatten each of the shared object file links, since Android APKs do not support version-suffixed .so.x.y.z paths
+var renamedSharedObjects: [String: String] = [:]
+for soFile in try fmd.contentsOfDirectory(atPath: libPath) {
+  var parts = soFile.split(separator: ".")
+  guard let soIndex = parts.firstIndex(of: "so") else { continue }
+
+  // e.g., for "libtinfo.so.6.5": soBase="libtinfo.so" soVersion="6.5"
+  let soBase = parts[0...soIndex].joined(separator: ".")
+  let soVersion = parts.dropFirst(soIndex + 1).joined(separator: ".")
+
+  if !soVersion.isEmpty {
+    renamedSharedObjects[soFile] = soBase // libtinfo.so.6.5->libtinfo.so
+  }
+
+  let soPath = sopath(soFile)
+  let soBasePath = sopath(soBase)
+  if (try? fmd.destinationOfSymbolicLink(atPath: soPath)) != nil {
+    try fmd.removeItem(atPath: soPath) // clear links
+  } else if !soVersion.isEmpty {
+    // otherwise move the version-suffixed path to the un-versioned destination
+    if (try? fmd.destinationOfSymbolicLink(atPath: soBasePath)) != nil {
+      // need to remove the destination before we can move
+      try fmd.removeItem(atPath: soBasePath)
+    }
+    try fmd.moveItem(atPath: soPath, toPath: soBasePath)
+  }
+}
+
+// update the rpath to be $ORIGIN, set the soname, and update all the "needed" sections for each of the peer libraries
+for soFile in try fmd.contentsOfDirectory(atPath: libPath).filter({ $0.hasSuffix(".so")} ) {
+  let soPath = sopath(soFile)
+  // fix the soname (e.g., libtinfo.so.6.5->libtinfo.so)
+  _ = runCommand("patchelf", with: ["--set-soname", soFile, soPath])
+  _ = runCommand("patchelf", with: ["--set-rpath", "$ORIGIN", soPath])
+
+  let needed = Set(runCommand("patchelf", with: ["--print-needed", soPath]).split(separator: "\n").map(\.description))
+  for needs in needed {
+    if let unversioned = renamedSharedObjects[needs] {
+      _ = runCommand("patchelf", with: ["--replace-needed", needs, unversioned, soPath])
+    }
+  }
+}
 
 for repo in swiftRepos {
   print("Checking for \(repo) source")
