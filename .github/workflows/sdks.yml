@@ -22,6 +22,7 @@ jobs:
       - name: Check for latest Swift ${{ matrix.version }} toolchain
         id: check
         run: |
+          export
           if [ ${{ matrix.version }} = 'release' ]; then
             LATEST_TOOLCHAIN_VERSION=$(curl -sL https://github.com/apple/swift/releases | grep -m1 swift-6.0 | cut -d- -f2)
             SWIFT_TAG="swift-${LATEST_TOOLCHAIN_VERSION}-RELEASE"
