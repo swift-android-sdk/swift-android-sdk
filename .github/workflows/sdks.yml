@@ -22,7 +22,6 @@ jobs:
       - name: Check for latest Swift ${{ matrix.version }} toolchain
         id: check
         run: |
-          export
           if [ ${{ matrix.version }} = 'release' ]; then
             LATEST_TOOLCHAIN_VERSION=$(curl -sL https://github.com/apple/swift/releases | grep -m1 swift-6.0 | cut -d- -f2)
             SWIFT_TAG="swift-${LATEST_TOOLCHAIN_VERSION}-RELEASE"
@@ -42,14 +41,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.check.outputs.latest-tag }}-ubuntu22.04.tar.gz
-          key: swift-ubuntu-22.04-${{ steps.check.outputs.latest-tag }}-toolchain
+          key: swift-ubuntu-22.04-${{ steps.check.outputs.latest-tag }}-toolchain-x
           lookup-only: true
       - name: Get cached macOS toolchain
         id: cache-toolchain-macos
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.check.outputs.latest-tag }}-osx.pkg
-          key: swift-macos-13-${{ steps.check.outputs.latest-tag }}-toolchain
+          key: swift-macos-13-${{ steps.check.outputs.latest-tag }}-toolchain-x
           lookup-only: true
       - name: Download toolchain
         id: download
@@ -165,7 +164,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/${{ steps.version.outputs.tag }}-${{ startsWith(matrix.os, 'macos') && 'osx.pkg' || 'ubuntu22.04.tar.gz' }}
-          key: swift-${{ matrix.os }}-${{ steps.version.outputs.tag }}-toolchain
+          key: swift-${{ matrix.os }}-${{ steps.version.outputs.tag }}-toolchain-x
           fail-on-cache-miss: true
       - name: Get cached Android NDK
         uses: actions/cache/restore@v4
@@ -236,7 +235,9 @@ jobs:
           perl -pi -e "s%/data/data/com.termux/files%$SDK%g" $SDK/usr/lib/pkgconfig/sqlite3.pc
           perl -pi -e 's%String\(cString: getpass%\"fake\" //%' swiftpm/Sources/PackageRegistryCommand/PackageRegistryCommand+Auth.swift
 
-          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk android-ndk-r$NDK_VERSION --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --install-destdir=$SDK --swift-install-components='compiler;clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
+          ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk android-ndk-r$NDK_VERSION --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --swift-testing --install-swift-testing --install-destdir=$SDK --swift-install-components='compiler;clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
+
+          find build -name '*.so'
 
           cp android-ndk-r$NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$(echo ${{ matrix.arch }} | sed "s/v7//")-linux-android*/libc++_shared.so $SDK/usr/lib
           patchelf --set-rpath \$ORIGIN $SDK/usr/lib/swift/android/lib[dFXs]*.so
@@ -250,6 +251,7 @@ jobs:
           popd
 
           tar cJf ~/$SDK_NAME.tar.xz $SDK_NAME
+          find $SDK_NAME -name '*.so'
           rm -rf build/ $SDK_NAME llvm-project/
       - name: Cache newly built ${{ matrix.version }} ${{ matrix.arch }} SDK on linux
         if: ${{ (steps.cache-bundle.outputs.cache-hit != 'true') && (steps.cache-sdk.outputs.cache-hit != 'true') && startsWith(matrix.os, 'ubuntu') }}

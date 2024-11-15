@@ -8,7 +8,7 @@ let termuxURL = "https://packages.termux.dev/apt/termux-main"
 
 let swiftRepos = ["llvm-project", "swift", "swift-experimental-string-processing", "swift-corelibs-libdispatch",
                   "swift-corelibs-foundation", "swift-corelibs-xctest", "swift-syntax", "swift-collections",
-                  "swift-foundation", "swift-foundation-icu"]
+                  "swift-foundation", "swift-foundation-icu", "swift-testing"]
 
 let extraSwiftRepos = ["swift-llbuild", "swift-package-manager", "swift-driver",
                        "swift-tools-support-core", "swift-argument-parser", "swift-crypto",
