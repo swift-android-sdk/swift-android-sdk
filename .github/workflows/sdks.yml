@@ -78,7 +78,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/android-ndk-r${{ env.NDK_VERSION }}-linux.zip
-          key: android-ndk-${{ env.NDK_VERSION }}-full
+          key: android-ndk-${{ env.NDK_VERSION }}-full-x
           lookup-only: true
       - name: Download Android NDK if not cached before
         if: ${{ steps.ndk.outputs.cache-hit != 'true' }}
@@ -94,7 +94,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/android-sysroot.tar.xz
-          key: android-ndk-${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}-x
           lookup-only: true
       - name: Download Android NDK sysroot if not cached before
         if: ${{ steps.cache-ndk.outputs.cache-hit != 'true' }}
@@ -147,14 +147,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/${{ steps.version.outputs.tag }}-android-${{ env.ANDROID_API_LEVEL }}-${{ env.BUNDLE_VERSION }}.artifactbundle.tar.gz
-          key: ${{ steps.version.outputs.key }}
+          key: ${{ steps.version.outputs.key }}-x
       - name: Get cached ${{ matrix.arch }} SDK otherwise
         id: cache-sdk
         uses: actions/cache/restore@v4
         if: ${{ steps.cache-bundle.outputs.cache-hit != 'true' }}
         with:
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.arch-key }}
+          key: ${{ steps.version.outputs.arch-key }}-x
       - name: Clone
         uses: actions/checkout@v4
         with:
@@ -171,7 +171,7 @@ jobs:
         if: ${{ (steps.cache-bundle.outputs.cache-hit != 'true') && startsWith(matrix.os, 'ubuntu') }}
         with:
           path: ~/android-ndk-r${{ env.NDK_VERSION }}-linux.zip
-          key: android-ndk-${{ env.NDK_VERSION }}-full
+          key: android-ndk-${{ env.NDK_VERSION }}-full-x
       - name: Setup Swift Toolchain
         env:
           SWIFT_TAG: ${{ steps.version.outputs.tag }}
@@ -258,7 +258,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-${{ matrix.arch }}-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.arch-key }}
+          key: ${{ steps.version.outputs.arch-key }}-x
       - name: Setup Swift ${{ matrix.version }} Android SDK
         id: sdk-setup
         run: |
@@ -542,21 +542,21 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-aarch64-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.aarch64-key }}
+          key: ${{ steps.version.outputs.aarch64-key }}-x
           fail-on-cache-miss: true
       - name: Get cached arm SDK on x86_64 runner
         if: ${{ steps.cache-bundle.outputs.cache-hit != 'true' && startsWith(matrix.os, 'ubuntu') && matrix.arch == 'x86_64' }}
         uses: actions/cache/restore@v4
         with:
           path: ~/swift-${{ matrix.version }}-android-armv7-*-sdk.tar.xz
-          key: ${{ steps.version.outputs.arm-key }}
+          key: ${{ steps.version.outputs.arm-key }}-x
           fail-on-cache-miss: true
       - name: Get previously cached Android NDK sysroot and runtime libraries
         if: ${{ steps.cache-bundle.outputs.cache-hit != 'true' && startsWith(matrix.os, 'ubuntu') && matrix.arch == 'x86_64' }}
         uses: actions/cache/restore@v4
         with:
           path: ~/android-sysroot.tar.xz
-          key: android-ndk-${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}-x
           fail-on-cache-miss: true
       - name: Assemble SDK bundle
         if: ${{ steps.cache-bundle.outputs.cache-hit != 'true' && startsWith(matrix.os, 'ubuntu') && matrix.arch == 'x86_64' }}
