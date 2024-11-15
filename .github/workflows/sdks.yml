@@ -235,6 +235,9 @@ jobs:
           perl -pi -e "s%/data/data/com.termux/files%$SDK%g" $SDK/usr/lib/pkgconfig/sqlite3.pc
           perl -pi -e 's%String\(cString: getpass%\"fake\" //%' swiftpm/Sources/PackageRegistryCommand/PackageRegistryCommand+Auth.swift
 
+            # swift-testing in incorrectly only installed when --install-swift-testing-macros is specified
+            perl -pi -e "s%return self.args.install_swift_testing_macros%return self.args.install_swift_testing%g" swift/utils/swift_build_support/swift_build_support/products/swift_testing.py
+
           ./swift/utils/build-script -RA --skip-build-cmark --build-llvm=0 --android --android-ndk android-ndk-r$NDK_VERSION --android-arch ${{ matrix.arch }} --android-api-level $ANDROID_API_LEVEL --build-swift-tools=0 --native-swift-tools-path=${TOOLCHAIN}/bin --native-clang-tools-path=${TOOLCHAIN}/bin --cross-compile-hosts=android-${{ matrix.arch }} --cross-compile-deps-path=$SDK --skip-local-build --build-swift-static-stdlib --xctest --skip-early-swift-driver --install-swift --install-libdispatch --install-foundation --install-xctest --swift-testing --install-swift-testing --install-destdir=$SDK --swift-install-components='compiler;clang-resource-dir-symlink;license;stdlib;sdk-overlay' --cross-compile-append-host-target-to-destdir=False -b -p --install-llbuild --sourcekit-lsp --skip-early-swiftsyntax
 
           find . -name '*.so'
