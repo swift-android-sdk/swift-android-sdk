@@ -1,17 +1,15 @@
 #!/bin/bash -ex
 
 patches_dir=$(dirname $(realpath -- "${BASH_SOURCE[0]}"))
-# the sourc checkout is expected to be the peer of this repo
+# the source checkout is expected to be the peer of this repo
 cd ${1:-${patches_dir}/..}
-
-swift_android_patch="${patches_dir}/swift-android.patch"
 
 # patch the patch, which seems to only be needed for an API less than 28
 # https://github.com/finagolfin/swift-android-sdk/blob/main/swift-android.patch#L110
-perl -pi -e 's/#if os\(Windows\)/#if os\(Android\)/g' $swift_android_patch
+perl -pi -e 's/#if os\(Windows\)/#if os\(Android\)/g' ${patches_dir}/swift-android.patch
 
 # remove the need to link in android-execinfo
-perl -pi -e 's;dispatch android-execinfo;dispatch;g' $swift_android_patch
+perl -pi -e 's;dispatch android-execinfo;dispatch;g' ${patches_dir}/swift-android.patch
 
 case "${BUILD_SCHEME}" in
     release)
