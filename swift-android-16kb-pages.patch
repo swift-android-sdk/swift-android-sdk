@@ -6,7 +6,7 @@ index f34ccfe34a8..e6e5ef7c4cb 100755
          echo -n " -fno-stack-protector"
      fi
  
-+    echo -n " --Wl,-z,max-page-size=16384"
++    #echo -n " --Wl,-z,max-page-size=16384"
 +
      local host=$1
  
