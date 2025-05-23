@@ -1,0 +1,25 @@
+diff --git a/swift/utils/build-script-impl b/swift/utils/build-script-impl
+index f34ccfe34a8..e6e5ef7c4cb 100755
+--- a/swift/utils/build-script-impl
++++ b/swift/utils/build-script-impl
+@@ -1371,6 +1371,8 @@ function swift_c_flags() {
+         echo -n " -fno-stack-protector"
+     fi
+ 
++    echo -n " --Wl,-z,max-page-size=16384"
++
+     local host=$1
+ 
+     case $host in
+diff --git a/swift/utils/swift_build_support/swift_build_support/targets.py b/swift/utils/swift_build_support/swift_build_support/targets.py
+index 508d6204eaf..39b64e175b2 100644
+--- a/swift/utils/swift_build_support/swift_build_support/targets.py
++++ b/swift/utils/swift_build_support/swift_build_support/targets.py
+@@ -165,6 +165,7 @@ class AndroidPlatform(Platform):
+ 
+         flags += '-sdk %s/sysroot ' % (android_toolchain_path)
+         flags += '-tools-directory %s/bin' % (android_toolchain_path)
++        flags += '-Xlinker --Wl,-z,max-page-size=16384'
+         return flags
+ 
+     def cmake_options(self, args):
