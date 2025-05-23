@@ -19,7 +19,7 @@ index 508d6204eaf..39b64e175b2 100644
  
          flags += '-sdk %s/sysroot ' % (android_toolchain_path)
          flags += '-tools-directory %s/bin' % (android_toolchain_path)
-+        //flags += '-Xlinker --Wl,-z,max-page-size=16384'
++        #flags += '-Xlinker --Wl,-z,max-page-size=16384'
          return flags
  
      def cmake_options(self, args):
