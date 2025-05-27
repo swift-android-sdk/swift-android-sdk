@@ -15,19 +15,19 @@ case "${BUILD_SCHEME}" in
     release)
         git apply -v -C1 ${patches_dir}/swift-android.patch
         git apply -v -C1 ${patches_dir}/swift-android-testing-release.patch
-        git apply -v -C1 ${patches_dir}/swift-android-16kb-pages.patch
+        git apply -v -C1 ${patches_dir}/swift-android-build-script.patch
         ;;
     swift-*-branch)
         git apply -v -C1 ${patches_dir}/swift-android.patch
         git apply -v -C1 ${patches_dir}/swift-android-devel.patch
         git apply -v -C1 ${patches_dir}/swift-android-testing-except-release.patch
-        git apply -v -C1 ${patches_dir}/swift-android-16kb-pages.patch
+        git apply -v -C1 ${patches_dir}/swift-android-build-script.patch
         ;;
     development)
         git apply -v -C1 ${patches_dir}/swift-android.patch
         git apply -v -C1 ${patches_dir}/swift-android-trunk-libdispatch.patch
         git apply -v -C1 ${patches_dir}/swift-android-testing-except-release.patch
-        git apply -v -C1 ${patches_dir}/swift-android-16kb-pages.patch
+        git apply -v -C1 ${patches_dir}/swift-android-build-script.patch
         ;;
     *)
         echo "$0: invalid BUILD_SCHEME=${BUILD_SCHEME}"

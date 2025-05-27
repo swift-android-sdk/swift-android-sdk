@@ -1,0 +1,56 @@
+diff --git a/swift/utils/build-script-impl b/swift/utils/build-script-impl
+index ff451cfb43f..bda4485c744 100755
+--- a/swift/utils/build-script-impl
++++ b/swift/utils/build-script-impl
+@@ -291,6 +291,7 @@ KNOWN_SETTINGS=(
+     cross-compile-with-host-tools                 ""                "set to use the clang we build for the host to then build the cross-compile hosts"
+     cross-compile-install-prefixes                ""                "semicolon-separated list of install prefixes to use for the cross-compiled hosts. The list expands, so if there are more cross-compile hosts than prefixes, unmatched hosts use the last prefix in the list"
+     cross-compile-deps-path                       ""                "path for CMake to look for cross-compiled library dependencies, such as libXML2"
++    cross-compile-build-swift-tools               "1"               "set to 1 to cross-compile the Swift host tools, like the Swift compiler"
+     cross-compile-append-host-target-to-destdir   "1"               "turns on appending the host target name of each cross-compiled toolchain to its install-destdir, to keep them separate from the natively-built toolchain"
+     skip-merge-lipo-cross-compile-tools           ""                "set to skip running merge-lipo after installing cross-compiled host Swift tools"
+     coverage-db                                   ""                "If set, coverage database to use when prioritizing testing"
+@@ -1371,6 +1372,8 @@ function swift_c_flags() {
+         echo -n " -fno-stack-protector"
+     fi
+ 
++    #echo -n " --Wl,-z,max-page-size=16384"
++
+     local host=$1
+ 
+     case $host in
+@@ -1692,8 +1695,14 @@ for host in "${ALL_HOSTS[@]}"; do
+                     cmake_options=(
+                         "${cmake_options[@]}"
+                         -DLLVM_TABLEGEN=$(build_directory "${LOCAL_HOST}" llvm)/bin/llvm-tblgen
++                        -DSWIFT_INCLUDE_TOOLS:BOOL=$(true_false "${CROSS_COMPILE_BUILD_SWIFT_TOOLS}")
+                         -DSWIFT_INCLUDE_TEST_BINARIES:BOOL=FALSE
+                     )
++                 else
++                    cmake_options=(
++                        "${cmake_options[@]}"
++                        -DSWIFT_INCLUDE_TOOLS:BOOL=$(true_false "${BUILD_SWIFT_TOOLS}")
++                    )
+                 fi
+ 
+                 # Command-line parameters override any autodetection that we
+@@ -1765,7 +1774,6 @@ for host in "${ALL_HOSTS[@]}"; do
+                     -DSWIFT_NATIVE_LLVM_TOOLS_PATH:STRING="${native_llvm_tools_path}"
+                     -DSWIFT_NATIVE_CLANG_TOOLS_PATH:STRING="${native_clang_tools_path}"
+                     -DSWIFT_NATIVE_SWIFT_TOOLS_PATH:STRING="${native_swift_tools_path}"
+-                    -DSWIFT_INCLUDE_TOOLS:BOOL=$(true_false "${BUILD_SWIFT_TOOLS}")
+                     -DSWIFT_BUILD_CLANG_OVERLAYS:BOOL=$(true_false "${BUILD_SWIFT_CLANG_OVERLAYS}")
+                     -DSWIFT_BUILD_REMOTE_MIRROR:BOOL=$(true_false "${BUILD_SWIFT_REMOTE_MIRROR}")
+                     -DSWIFT_STDLIB_SIL_DEBUGGING:BOOL=$(true_false "${BUILD_SIL_DEBUGGING_STDLIB}")
+diff --git a/swift/utils/swift_build_support/swift_build_support/targets.py b/swift/utils/swift_build_support/swift_build_support/targets.py
+index fba09416ddb..9eab6cf1c78 100644
+--- a/swift/utils/swift_build_support/swift_build_support/targets.py
++++ b/swift/utils/swift_build_support/swift_build_support/targets.py
+@@ -165,6 +165,7 @@ class AndroidPlatform(Platform):
+ 
+         flags += '-sdk %s/sysroot ' % (android_toolchain_path)
+         flags += '-tools-directory %s/bin' % (android_toolchain_path)
++        #flags += '-Xlinker --Wl,-z,max-page-size=16384'
+         return flags
+ 
+     def cmake_options(self, args):
