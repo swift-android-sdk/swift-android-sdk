@@ -1,0 +1,328 @@
+diff --git a/test/AutoDiff/SILOptimizer/vjp_inlining.swift b/test/AutoDiff/SILOptimizer/vjp_inlining.swift
+index 9f839a6c3af..6cc8aa75644 100644
+--- a/test/AutoDiff/SILOptimizer/vjp_inlining.swift
++++ b/test/AutoDiff/SILOptimizer/vjp_inlining.swift
+@@ -9,6 +9,8 @@
+ import _Differentiation
+ #if canImport(Glibc)
+ import Glibc
++#elseif canImport(Android)
++import Android
+ #else
+ import Foundation
+ #endif
+diff --git a/test/ClangImporter/cfuncs_parse.swift b/test/ClangImporter/cfuncs_parse.swift
+index d5e4390da11..f2ca15c0876 100644
+--- a/test/ClangImporter/cfuncs_parse.swift
++++ b/test/ClangImporter/cfuncs_parse.swift
+@@ -68,9 +68,9 @@ func test_pow() {
+ }
+ 
+ // https://github.com/apple/swift/issues/51573
+-// long doubles in AAPCS64 are 128 bits, which is not supported by
+-// Swift, so don't test this.
+-#if !((os(Android) || os(Linux)) && arch(arm64))
++// long doubles in AAPCS64 and 64-bit Android are 128 bits, which is not
++// supported by Swift, so don't test this.
++#if !((os(Android) && _pointerBitWidth(_64)) || (os(Linux) && arch(arm64)))
+ func test_powl() {
+   powl(1.5, 2.5)
+ }
+diff --git a/test/Frontend/embed-bitcode.swift b/test/Frontend/embed-bitcode.swift
+index 9f59002b561..e16c7b7180e 100644
+--- a/test/Frontend/embed-bitcode.swift
++++ b/test/Frontend/embed-bitcode.swift
+@@ -1,16 +1,8 @@
+-// REQUIRES: CPU=x86_64
++// REQUIRES: OS=macosx || OS=ios || OS=tvos || OS=watchos, CPU=x86_64
+ // RUN: %target-swift-frontend -c -module-name someModule -embed-bitcode-marker  -o %t.o %s
+ // RUN: llvm-objdump --macho --section="__LLVM,__bitcode" %t.o | %FileCheck -check-prefix=MARKER %s
+ // RUN: llvm-objdump --macho --section="__LLVM,__swift_cmdline" %t.o | %FileCheck -check-prefix=MARKER-CMD %s
+ 
+-// This file tests Mach-O file output, but Linux variants do not produce Mach-O
+-// files.
+-// UNSUPPORTED: OS=linux-gnu
+-// UNSUPPORTED: OS=linux-gnueabihf
+-// UNSUPPORTED: OS=freebsd
+-// UNSUPPORTED: OS=openbsd
+-// UNSUPPORTED: OS=windows-msvc
+-
+ // MARKER: Contents of (__LLVM,__bitcode) section
+ // MARKER-NEXT: 00
+ // MARKER-CMD: Contents of (__LLVM,__swift_cmdline) section
+diff --git a/test/IRGen/condfail.sil b/test/IRGen/condfail.sil
+index 3b48901a82d..6ac3eab8b0c 100644
+--- a/test/IRGen/condfail.sil
++++ b/test/IRGen/condfail.sil
+@@ -1,4 +1,4 @@
+-// RUN: %target-swift-frontend -primary-file %s -O -g -S  | %FileCheck %s --check-prefix CHECK --check-prefix CHECK-%target-cpu --check-prefix CHECK-OPT-%target-os
++// RUN: %target-swift-frontend -primary-file %s -O -g -S  | %FileCheck %s --check-prefix CHECK --check-prefix CHECK-%target-cpu --check-prefix CHECK-OPT-%target-os --check-prefix CHECK-OPT-%target-os-%target-cpu
+ // RUN: %target-swift-frontend -primary-file %s -g -S  | %FileCheck %s --check-prefix CHECK --check-prefix CHECK-%target-cpu --check-prefix CHECK-NOOPT-%target-os
+ 
+ import Builtin
+@@ -25,8 +25,10 @@ import Swift
+ // CHECK-OPT-windows:   ##NO_APP
+ // CHECK-OPT-linux-androideabi:   @APP
+ // CHECK-OPT-linux-androideabi:   @NO_APP
+-// CHECK-OPT-linux-android:       //APP
+-// CHECK-OPT-linux-android:       //NO_APP
++// CHECK-OPT-linux-android-aarch64:       //APP
++// CHECK-OPT-linux-android-aarch64:       //NO_APP
++// CHECK-OPT-linux-android-x86_64:       #APP
++// CHECK-OPT-linux-android-x86_64:       #NO_APP
+ // CHECK-NOOPT-macosx-NOT: InlineAsm Start
+ // CHECK-NOOPT-macosx-NOT: InlineAsm End
+ // CHECK-NOOPT-linux-NOT:  ##APP
+@@ -35,8 +37,10 @@ import Swift
+ // CHECK-NOOPT-windows-NOT:  ##NO_APP
+ // CHECK-OPT-linux-androideabi-NOT:   @APP
+ // CHECK-OPT-linux-androideabi-NOT:   @NO_APP
+-// CHECK-OPT-linux-android-NOT:       //APP
+-// CHECK-OPT-linux-android-NOT:       //NO_APP
++// CHECK-OPT-linux-android-aarch64-NOT:       //APP
++// CHECK-OPT-linux-android-aarch64-NOT:       //NO_APP
++// CHECK-OPT-linux-android-x86_64-NOT:       #APP
++// CHECK-OPT-linux-android-x86_64-NOT:       #NO_APP
+ // CHECK-x86_64:      ud2
+ // CHECK-i386:        ud2
+ // CHECK-arm64:       brk
+diff --git a/test/IRGen/framepointer.sil b/test/IRGen/framepointer.sil
+index 2ef0a5c2b7f..14054a9e7bd 100644
+--- a/test/IRGen/framepointer.sil
++++ b/test/IRGen/framepointer.sil
+@@ -1,4 +1,4 @@
+-// RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s -check-prefix CHECK --check-prefix=CHECK-%target-abi
++// RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s -check-prefix CHECK --check-prefix=CHECK-%target-abi --check-prefix=CHECK-%target-abi-%target-os
+ // RUN: %target-swift-frontend -primary-file %s -emit-ir -Xcc -mno-omit-leaf-frame-pointer | %FileCheck %s -check-prefix CHECK-ALL --check-prefix=CHECK-%target-abi-ALL
+ // RUN: %target-swift-frontend -primary-file %s -S | %FileCheck %s  --check-prefix=CHECKASM --check-prefix=CHECKASM-%target-os-%target-cpu
+ // RUN: %target-swift-frontend -primary-file %s -emit-ir -Xcc -momit-leaf-frame-pointer | %FileCheck %s -check-prefix LEAF --check-prefix=LEAF-%target-abi
+@@ -33,7 +33,10 @@ entry(%i : $Int32):
+ // CHECK:   ret i32 %1
+ // CHECK: }
+ 
+-// CHECK-SYSV: attributes [[ATTR]] = { {{.*}}"frame-pointer"="all"
++// CHECK-SYSV: Function Attrs:
++// CHECK-SYSV-macosx: attributes [[ATTR]] = { {{.*}}"frame-pointer"="all"
++// CHECK-SYSV-linux-gnu: attributes [[ATTR]] = { {{.*}}"frame-pointer"="all"
++// CHECK-SYSV-linux-android: attributes [[ATTR]] = { {{.*}}"frame-pointer"="non-leaf"
+ // CHECK-WIN: attributes [[ATTR]] = { {{.*}}
+ 
+ // CHECK-ALL: define{{.*}} swiftcc i32 @leaf_function_no_frame_pointer(i32 %0) [[ATTR:#.*]] {
+diff --git a/test/IRGen/lto_autolink.swift b/test/IRGen/lto_autolink.swift
+index 9a9ba4b576e..ccf196e5bf1 100644
+--- a/test/IRGen/lto_autolink.swift
++++ b/test/IRGen/lto_autolink.swift
+@@ -28,8 +28,8 @@ import empty
+ 
+ 
+ // RUN: %target-swift-frontend -target %target-cpu-unknown-linux-gnu -emit-module -parse-stdlib -o %t -module-name empty -module-link-name empty %S/../Inputs/empty.swift
+-// RUN: %target-swift-emit-ir -target %target-cpu-unknown-linux-gnu -lto=llvm-full -parse-stdlib -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-ELF-MERGE
+-// RUN: %target-swift-emit-ir -target %target-cpu-unknown-linux-gnu -lto=llvm-thin -parse-stdlib -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-ELF-MERGE
++// RUN: %target-swift-emit-ir -target %target-cpu-unknown-linux-gnu -lto=llvm-full -parse-stdlib -nostdimport -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-ELF-MERGE
++// RUN: %target-swift-emit-ir -target %target-cpu-unknown-linux-gnu -lto=llvm-thin -parse-stdlib -nostdimport -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-ELF-MERGE
+ 
+ // CHECK-ELF-MERGE-DAG: !llvm.dependent-libraries = !{
+ // CHECK-ELF-MERGE-DAG: !{{[0-9]+}} = !{!"empty"}
+@@ -43,8 +43,4 @@ import AutolinkElfCPragma
+ import AutolinkModuleMapLink
+ #endif
+ 
+-// UNSUPPORTED: OS=macosx && CPU=arm64
+-// UNSUPPORTED: OS=ios && CPU=arm64e
+-// UNSUPPORTED: OS=watchos && (CPU=arm64_32 || CPU=armv7k)
+-// UNSUPPORTED: OS=linux-gnu && CPU=aarch64
+ // UNSUPPORTED: CPU=wasm32
+diff --git a/test/IRGen/pic.swift b/test/IRGen/pic.swift
+index db29b347255..b5160b2bfd7 100644
+--- a/test/IRGen/pic.swift
++++ b/test/IRGen/pic.swift
+@@ -2,7 +2,7 @@
+ // platforms.
+ 
+ // https://github.com/apple/swift/issues/54619
+-// XFAIL: OS=linux-android, CPU=aarch64
++// XFAIL: OS=linux-android && CPU=aarch64
+ // UNSUPPORTED: OS=linux-gnu, CPU=wasm32
+ 
+ // RUN: %target-swift-frontend %s -module-name main -S -o - | %FileCheck -check-prefix=%target-cpu -check-prefix=%target-cpu-%target-sdk-name %s
+diff --git a/test/IRGen/static_initializer.sil b/test/IRGen/static_initializer.sil
+index d4cb6849cff..730d89211eb 100644
+--- a/test/IRGen/static_initializer.sil
++++ b/test/IRGen/static_initializer.sil
+@@ -1,6 +1,9 @@
+ // RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-abi -check-prefix CHECK-%target-abi-%target-cpu
+ 
+-// REQUIRES: CPU=arm64 || CPU=x86_64
++// REQUIRES: CPU=aarch64 || CPU=arm64 || CPU=x86_64
++
++// Android x86_64 doesn't expose Float80.
++// UNSUPPORTED: OS=linux-android && CPU=x86_64
+ 
+ // Generated from
+ // var x : Int32 = 2
+diff --git a/test/Interop/Cxx/class/closure-thunk-irgen.swift b/test/Interop/Cxx/class/closure-thunk-irgen.swift
+index 7745b4364d7..1c137716656 100644
+--- a/test/Interop/Cxx/class/closure-thunk-irgen.swift
++++ b/test/Interop/Cxx/class/closure-thunk-irgen.swift
+@@ -23,9 +23,9 @@ public func testClosureToBlock() {
+ // CHECK: define internal void @"$s4main20testClosureToFuncPtryyFySo10NonTrivialVcfU_To"(ptr %[[V0:.*]])
+ // CHECK: %[[V1:.*]] = alloca %{{.*}}, align 8
+ // CHECK-NEXT: call void @llvm.lifetime.start.p0(i64 8, ptr %[[V1]])
+-// CHECK-NEXT: call {{void|ptr}} @_ZN10NonTrivialC1ERKS_(ptr %[[V1]], ptr %[[V0]])
++// CHECK-NEXT: call {{void|ptr}} @_ZN10NonTrivialC{{1|2}}ERKS_(ptr %[[V1]], ptr %[[V0]])
+ // CHECK-NEXT: call swiftcc void @"$s4main20testClosureToFuncPtryyFySo10NonTrivialVcfU_"(ptr noalias dereferenceable(8) %[[V1]])
+-// CHECK-NEXT: call {{void|ptr}} @_ZN10NonTrivialD1Ev(ptr %[[V1]])
++// CHECK-NEXT: call {{void|ptr}} @_ZN10NonTrivialD{{1|2}}Ev(ptr %[[V1]])
+ // CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 8, ptr %[[V1]])
+ // CHECK-NEXT: ret void
+ 
+@@ -41,7 +41,7 @@ public func testClosureToFuncPtrReturnNonTrivial() {
+   cfuncReturnNonTrivial2({() -> NonTrivial in return NonTrivial()});
+ }
+ 
+-// CHECK: define swiftcc { ptr, ptr } @"$s4main13returnFuncPtrySo10NonTrivialVcyF"()
++// CHECK: define{{( protected)?}} swiftcc { ptr, ptr } @"$s4main13returnFuncPtrySo10NonTrivialVcyF"()
+ // CHECK: %[[V0:.*]] = call ptr @_Z8getFnPtrv()
+ // CHECK: %[[V1:.*]] = call noalias ptr @swift_allocObject(ptr getelementptr inbounds (%{{.*}}, ptr @{{.*}}, i32 0, i32 2), i64 24, i64 7)
+ // CHECK: %[[V2:.*]] = getelementptr inbounds <{ %{{.*}}, ptr }>, ptr %[[V1]], i32 0, i32 1
+@@ -52,12 +52,12 @@ public func testClosureToFuncPtrReturnNonTrivial() {
+ // CHECK: define linkonce_odr hidden swiftcc void @"$sSo10NonTrivialVIetCX_ABIegn_TR"(ptr noalias dereferenceable(8) %[[V0:.*]], ptr %[[V1:.*]])
+ // CHECK: %[[V2:.*]] = alloca %{{.*}}, align 8
+ // CHECK: call void @llvm.lifetime.start.p0(i64 8, ptr %[[V2]])
+-// CHECK: call {{(void|ptr)}} @_ZN10NonTrivialC1ERKS_(ptr %[[V2]], ptr %[[V0]])
++// CHECK: call {{(void|ptr)}} @_ZN10NonTrivialC{{1|2}}ERKS_(ptr %[[V2]], ptr %[[V0]])
+ // CHECK: invoke void %[[V1]](ptr %[[V2]])
+ // CHECK: to label %[[INVOKE_CONT:.*]] unwind label %{{.*}}
+ 
+ // CHECK: [[INVOKE_CONT]]:
+-// CHECK-NEXT: call {{(void|ptr)}} @_ZN10NonTrivialD1Ev(ptr %[[V2]])
++// CHECK-NEXT: call {{(void|ptr)}} @_ZN10NonTrivialD{{1|2}}Ev(ptr %[[V2]])
+ // CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 8, ptr %[[V2]])
+ // CHECK-NEXT: ret void
+ 
+diff --git a/test/Interop/Cxx/class/function-call-irgen.swift b/test/Interop/Cxx/class/function-call-irgen.swift
+index c2d45e7ddf3..acba58ed69b 100644
+--- a/test/Interop/Cxx/class/function-call-irgen.swift
++++ b/test/Interop/Cxx/class/function-call-irgen.swift
+@@ -4,12 +4,12 @@
+ 
+ import Closure
+ 
+-// CHECK: define swiftcc void @"$s4main14testNonTrivialyyF"()
++// CHECK: define{{( protected)?}} swiftcc void @"$s4main14testNonTrivialyyF"()
+ // CHECK: %[[V0:.*]] = alloca %{{.*}}, align 8
+ // CHECK: call void @llvm.lifetime.start.p0(i64 8, ptr %[[V0]])
+ // CHECK: call {{(void|ptr)}} @__swift_cxx_ctor_ZN10NonTrivialC1Ev(ptr %[[V0]])
+ // CHECK: call void @_Z5cfunc10NonTrivial(ptr %[[V0]])
+-// CHECK: call {{(void|ptr)}} @_ZN10NonTrivialD1Ev(ptr %[[V0]])
++// CHECK: call {{(void|ptr)}} @_ZN10NonTrivialD{{1|2}}Ev(ptr %[[V0]])
+ // CHECK: call void @llvm.lifetime.end.p0(i64 8, ptr %[[V0]])
+ // CHECK: ret void
+ 
+@@ -17,7 +17,7 @@ public func testNonTrivial() {
+   cfunc(NonTrivial());
+ }
+ 
+-// CHECK: define swiftcc void @"$s4main29testNonTrivialFunctionPointeryyF"()
++// CHECK: define{{( protected)?}} swiftcc void @"$s4main29testNonTrivialFunctionPointeryyF"()
+ // CHECK: %[[F_DEBUG:.*]] = alloca ptr, align 8
+ // CHECK: call void @llvm.memset.p0.i64(ptr align 8 %[[F_DEBUG]], i8 0, i64 8, i1 false)
+ // CHECK: %[[V0:.*]] = alloca %{{.*}}, align 8
+@@ -29,7 +29,7 @@ public func testNonTrivial() {
+ // CHECK: to label %[[INVOKE_CONT:.*]] unwind label %{{.*}}
+ 
+ // CHECK: [[INVOKE_CONT]]:
+-// CHECK: call {{(void|ptr)}} @_ZN10NonTrivialD1Ev(ptr %[[V0]])
++// CHECK: call {{(void|ptr)}} @_ZN10NonTrivialD{{1|2}}Ev(ptr %[[V0]])
+ // CHECK: call void @llvm.lifetime.end.p0(i64 8, ptr %[[V0]])
+ // CHECK: ret void
+ 
+diff --git a/test/Interop/Cxx/stdlib/std-span-interface.swift b/test/Interop/Cxx/stdlib/std-span-interface.swift
+index 436c9fd1070..891a715f67c 100644
+--- a/test/Interop/Cxx/stdlib/std-span-interface.swift
++++ b/test/Interop/Cxx/stdlib/std-span-interface.swift
+@@ -9,7 +9,7 @@
+ // REQUIRES: swift_feature_LifetimeDependence
+ 
+ // FIXME swift-ci linux tests do not support std::span
+-// UNSUPPORTED: OS=linux-gnu
++// UNSUPPORTED: OS=linux-gnu, OS=linux-android, OS=linux-androideabi
+ 
+ #if !BRIDGING_HEADER
+ import StdSpan
+diff --git a/test/Parse/enum_floating_point_raw_value.swift b/test/Parse/enum_floating_point_raw_value.swift
+index 8444770d30a..27fd8a8724a 100644
+--- a/test/Parse/enum_floating_point_raw_value.swift
++++ b/test/Parse/enum_floating_point_raw_value.swift
+@@ -5,8 +5,8 @@
+ 
+ // REQUIRES: CPU=i386 || CPU=x86_64
+ 
+-// Windows does not support FP80
+-// XFAIL: OS=windows-msvc
++// Windows and Android do not support FP80
++// UNSUPPORTED: OS=windows-msvc, OS=linux-android
+ 
+ enum RawTypeWithFloatValues : Float { // expected-error {{'RawTypeWithFloatValues' declares raw type 'Float', but does not conform to RawRepresentable and conformance could not be synthesized}} expected-note {{add stubs for conformance}}
+   case Northrup = 1.5
+diff --git a/test/SIL/clang-function-types-android.swift b/test/SIL/clang-function-types-android.swift
+index 1d5d82baff5..0685eba73c4 100644
+--- a/test/SIL/clang-function-types-android.swift
++++ b/test/SIL/clang-function-types-android.swift
+@@ -1,4 +1,4 @@
+-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-sil -swift-version 5 -use-clang-function-types -experimental-print-full-convention -o - | %FileCheck %s --check-prefix=CHECK-%target-ptrsize
++// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -Xllvm -sil-print-types -emit-sil -swift-version 5 -use-clang-function-types -experimental-print-full-convention -o - | %FileCheck %s --check-prefix=CHECK-%target-ptrsize
+ 
+ // REQUIRES: OS=linux-android ||  OS=linux-androideabi
+ 
+diff --git a/test/SILOptimizer/diagnostic_constant_propagation_floats_x86.swift b/test/SILOptimizer/diagnostic_constant_propagation_floats_x86.swift
+index 6411c9aa5b9..8cdcc90e4aa 100644
+--- a/test/SILOptimizer/diagnostic_constant_propagation_floats_x86.swift
++++ b/test/SILOptimizer/diagnostic_constant_propagation_floats_x86.swift
+@@ -1,7 +1,9 @@
+ // RUN: %target-swift-frontend -emit-sil -primary-file %s -o /dev/null -verify
+ //
+ // REQUIRES: CPU=i386 || CPU=x86_64
+-// UNSUPPORTED: OS=windows-msvc
++//
++// Windows and Android do not expose Float80.
++// UNSUPPORTED: OS=windows-msvc, OS=linux-android
+ //
+ // These are tests for diagnostics produced by constant propagation pass
+ // on floating-point operations that are specific to x86 architectures,
+diff --git a/test/lit.cfg b/test/lit.cfg
+index 061f2947e6b..4250ee522f1 100644
+--- a/test/lit.cfg
++++ b/test/lit.cfg
+@@ -2400,10 +2400,15 @@ def find_compiler_rt_libs():
+     # Next check for the old scheme 'clang/lib/<os-name>', ignoring
+     # any target environment which is currently part of 'run_os'.
+     path = make_path(base, run_os.split('-')[0])
++
++    # Check if the Android environment needs to be in the name.
++    env = ''
++    if run_os.startswith('linux-android'):
++        env = '-android'
+     if os.path.exists(path):
+         # We should then have the architecture in the name.
+         for lib in os.listdir(path):
+-            match = re.match(r'(?:lib)?clang_rt\.(\w+)-' + run_cpu, lib)
++            match = re.match(r'(?:lib)?clang_rt\.(\w+)-' + run_cpu + env, lib)
+             if match:
+                 libs[match[1]] = lib
+ 
+diff --git a/test/stdlib/FloatingPointIR_FP80.swift b/test/stdlib/FloatingPointIR_FP80.swift
+index a5f0344ec05..318d7010b51 100644
+--- a/test/stdlib/FloatingPointIR_FP80.swift
++++ b/test/stdlib/FloatingPointIR_FP80.swift
+@@ -3,7 +3,9 @@
+ // RUN: %target-build-swift -Ounchecked -emit-ir %s | %FileCheck -check-prefix=%target-cpu %s
+ 
+ // REQUIRES: CPU=i386 || CPU=x86_64
+-// UNSUPPORTED: OS=windows-msvc
++//
++// Windows and Android do not expose Float80.
++// UNSUPPORTED: OS=windows-msvc, OS=linux-android
+ 
+ var globalFloat80 : Float80 = 0.0
+ 

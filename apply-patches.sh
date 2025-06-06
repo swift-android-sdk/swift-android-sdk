@@ -22,6 +22,9 @@ case "${BUILD_SCHEME}" in
         git apply -v -C1 ${patches_dir}/swift-android-devel.patch
         git apply -v -C1 ${patches_dir}/swift-android-testing-except-release.patch
         git apply -v -C1 ${patches_dir}/swift-android-build-script.patch
+        pushd swift
+        git apply -v -C1 ${patches_dir}/swift-android-devel-pr81398.patch
+        popd
         ;;
     development)
         git apply -v -C1 ${patches_dir}/swift-android.patch
