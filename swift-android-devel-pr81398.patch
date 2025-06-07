@@ -96,15 +96,18 @@ index 2ef0a5c2b7f..14054a9e7bd 100644
  // RUN: %target-swift-frontend -primary-file %s -emit-ir -Xcc -mno-omit-leaf-frame-pointer | %FileCheck %s -check-prefix CHECK-ALL --check-prefix=CHECK-%target-abi-ALL
  // RUN: %target-swift-frontend -primary-file %s -S | %FileCheck %s  --check-prefix=CHECKASM --check-prefix=CHECKASM-%target-os-%target-cpu
  // RUN: %target-swift-frontend -primary-file %s -emit-ir -Xcc -momit-leaf-frame-pointer | %FileCheck %s -check-prefix LEAF --check-prefix=LEAF-%target-abi
-@@ -33,7 +33,10 @@ entry(%i : $Int32):
+@@ -33,9 +33,12 @@ entry(%i : $Int32):
+ // CHECK: entry:
+ // CHECK:   %1 = call swiftcc i32 @leaf_function_no_frame_pointer(i32 %0)
  // CHECK:   ret i32 %1
- // CHECK: }
+-// CHECK: }
  
 -// CHECK-SYSV: attributes [[ATTR]] = { {{.*}}"frame-pointer"="all"
-+// CHECK-SYSV: Function Attrs:
++// CHECK-SYSV: }
 +// CHECK-SYSV-macosx: attributes [[ATTR]] = { {{.*}}"frame-pointer"="all"
 +// CHECK-SYSV-linux-gnu: attributes [[ATTR]] = { {{.*}}"frame-pointer"="all"
 +// CHECK-SYSV-linux-android: attributes [[ATTR]] = { {{.*}}"frame-pointer"="non-leaf"
++// CHECK-WIN: }
  // CHECK-WIN: attributes [[ATTR]] = { {{.*}}
  
  // CHECK-ALL: define{{.*}} swiftcc i32 @leaf_function_no_frame_pointer(i32 %0) [[ATTR:#.*]] {
@@ -311,6 +314,23 @@ index 061f2947e6b..4250ee522f1 100644
              if match:
                  libs[match[1]] = lib
  
+@@ -2742,6 +2742,8 @@ extraCheckWarningFlags = (
+ # Verifies that a C++ file can be compiled without warnings except for some exceptions.
+ config.substitutions.insert(0, ('%check-c-header-in-clang',
+   '%clang -fsyntax-only -x c-header ' + extraCheckWarningFlags +
++  ' --sysroot %r ' % config.variant_sdk +
++  '-target %r ' % config.variant_triple +
+   # Use standard header/framework search paths.
+   '-F %%clang-importer-sdk-path/frameworks '
+   '-I %%clang-include-dir '
+@@ -2751,6 +2753,7 @@ config.substitutions.insert(0, ('%check-c-header-in-clang',
+ config.substitutions.insert(0, ('%check-cxx-header-in-clang',
+   '%clangxx -fsyntax-only -x c++-header ' + extraCheckWarningFlags +
+   ' --sysroot %r ' % config.variant_sdk +
++  '-target %r ' % config.variant_triple +
+   # Use standard header/framework search paths.
+   '-F %%clang-importer-sdk-path/frameworks '
+   '-I %%clang-include-dir %%cxx-stdlib-include '
 diff --git a/test/stdlib/FloatingPointIR_FP80.swift b/test/stdlib/FloatingPointIR_FP80.swift
 index a5f0344ec05..318d7010b51 100644
 --- a/test/stdlib/FloatingPointIR_FP80.swift
