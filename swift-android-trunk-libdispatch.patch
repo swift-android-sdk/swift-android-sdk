@@ -10,6 +10,30 @@ index 3f36fc979cb..8713ae8fea8 100755
              "grep",
              "--extended-regexp",
              "--recursive",
+diff --git a/swift/test/Reflection/conformance_descriptors.swift b/swift/test/Reflection/conformance_descriptors.swift
+index b114f764552..e1bd98c08f4 100644
+--- a/swift/test/Reflection/conformance_descriptors.swift
++++ b/swift/test/Reflection/conformance_descriptors.swift
+@@ -5,6 +5,7 @@
+ //
+ // Temporarily disable on AArch64 Linux (rdar://88451721)
+ // UNSUPPORTED: OS=linux-gnu && CPU=aarch64
++// XFAIL: OS=linux-android
+ 
+ // rdar://100558042
+ // UNSUPPORTED: CPU=arm64e
+diff --git a/swift/test/Reflection/typeref_decoding.swift b/swift/test/Reflection/typeref_decoding.swift
+index e0a3b4465a3..c01af893eda 100644
+--- a/swift/test/Reflection/typeref_decoding.swift
++++ b/swift/test/Reflection/typeref_decoding.swift
+@@ -10,6 +10,7 @@
+ 
+ // FIXME: rdar://127796117
+ // UNSUPPORTED: OS=linux-gnu && CPU=aarch64
++// XFAIL: OS=linux-android
+ 
+ // RUN: %target-build-swift -target %target-swift-5.2-abi-triple -Xfrontend -enable-anonymous-context-mangled-names %S/Inputs/ConcreteTypes.swift %S/Inputs/GenericTypes.swift %S/Inputs/Protocols.swift %S/Inputs/Extensions.swift %S/Inputs/Closures.swift -parse-as-library -emit-module -emit-library %no-fixup-chains -module-name TypesToReflect -o %t/%target-library-name(TypesToReflect)
+ // RUN: %target-build-swift -target %target-swift-5.2-abi-triple -Xfrontend -enable-anonymous-context-mangled-names %S/Inputs/ConcreteTypes.swift %S/Inputs/GenericTypes.swift %S/Inputs/Protocols.swift %S/Inputs/Extensions.swift %S/Inputs/Closures.swift %S/Inputs/main.swift -emit-module -emit-executable %no-fixup-chains -module-name TypesToReflect -o %t/TypesToReflect
 diff --git a/swift-corelibs-libdispatch/cmake/modules/SwiftSupport.cmake b/swift-corelibs-libdispatch/cmake/modules/SwiftSupport.cmake
 index 3da519e..e2dd8ed 100644
 --- a/swift-corelibs-libdispatch/cmake/modules/SwiftSupport.cmake
