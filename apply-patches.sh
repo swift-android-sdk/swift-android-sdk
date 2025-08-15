@@ -5,7 +5,7 @@ patches_dir=$(dirname $(realpath -- "${BASH_SOURCE[0]}"))
 cd ${1:-${patches_dir}/..}
 
 # patch the patch, which seems to only be needed for an API less than 28
-# https://github.com/finagolfin/swift-android-sdk/blob/main/swift-android.patch#L110
+# https://github.com/swift-android-sdk/swift-android-sdk/blob/main/swift-android.patch#L110
 perl -pi -e 's/#if os\(Windows\)/#if os\(Android\)/g' ${patches_dir}/swift-android.patch
 
 # remove the need to link in android-execinfo
