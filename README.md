@@ -1,6 +1,6 @@
 # Swift cross-compilation SDK bundle for Android
 
-The patches used to build this SDK bundle are open-source and listed below. I
+The patches used to build this SDK bundle are open source and listed below. I
 maintain [a daily CI on github Actions](https://github.com/finagolfin/swift-android-sdk/actions?query=event%3Aschedule)
 that [cross-compiles the SDK bundle from the release and development source branches of
 the Swift toolchain for AArch64, armv7, and x86_64, builds several Swift
